@@ -535,7 +535,7 @@ static int pm8058_gpios_init(void)
 			.function       = PM_GPIO_FUNC_NORMAL,
 		}
 	};
-Ã¥*/
+å*/
 #ifdef CONFIG_MMC_MSM_CARD_HW_DETECTION
 	struct pm8xxx_gpio_init_info sdcc_det = {
 		PM8058_GPIO_PM_TO_SYS(SAGA_SDMC_CD_N),
@@ -2045,15 +2045,15 @@ static struct marimba_codec_platform_data mariba_codec_pdata = {
 };
 
 static struct marimba_platform_data marimba_pdata = {
-	.slave_id[MARIMBA_SLAVE_ID_FM]       = MARIMBA_SLAVE_ID_FM_ADDR,
+//	.slave_id[MARIMBA_SLAVE_ID_FM]       = MARIMBA_SLAVE_ID_FM_ADDR,
 	.slave_id[MARIMBA_SLAVE_ID_CDC]	     = MARIMBA_SLAVE_ID_CDC_ADDR,
 	.slave_id[MARIMBA_SLAVE_ID_QMEMBIST] = MARIMBA_SLAVE_ID_QMEMBIST_ADDR,
 	.slave_id[SLAVE_ID_BAHAMA_FM]        = BAHAMA_SLAVE_ID_FM_ADDR,
 	.slave_id[SLAVE_ID_BAHAMA_QMEMBIST]  = BAHAMA_SLAVE_ID_QMEMBIST_ADDR,
 	.marimba_setup = msm_marimba_setup_power,
 	.marimba_shutdown = msm_marimba_shutdown_power,
-	.marimba_gpio_config = msm_marimba_gpio_config_svlte,
-	.fm = &marimba_fm_pdata,
+//	.marimba_gpio_config = msm_marimba_gpio_config_svlte,
+//	.fm = &marimba_fm_pdata,
 	.codec = &mariba_codec_pdata,
 	.tsadc_ssbi_adap = MARIMBA_SSBI_ADAP,
 };
@@ -2256,26 +2256,15 @@ void config_saga_usb_id_gpios(bool output)
 #define PM8058ADC_16BIT(adc) ((adc * 2200) / 65535) /* vref=2.2v, 16-bits resolution */
 int64_t saga_get_usbid_adc(void)
 {
-#ifdef CONFIG_SAGA_OTG
-        uint32_t adc_value; //= 0xffffffff;
-        
-        htc_get_usb_accessory_adc_level(&adc_value);
-	adc_value = PM8058ADC_16BIT(adc_value);
-#else
 	uint32_t adc_value = 0xffffffff;
 /*
 	htc_get_usb_accessory_adc_level(&adc_value);
 	adc_value = PM8058ADC_16BIT(adc_value);*/
-#endif
 	return adc_value;
 }
 
 static struct cable_detect_platform_data cable_detect_pdata = {
-#ifdef CONFIG_SAGA_OTG
-	.detect_type 		= CABLE_TYPE_PMIC_ADC, //CABLE_TYPE_ID_PIN,
-#else
-        .detect_type 		= CABLE_TYPE_ID_PIN,
-#endif
+	.detect_type 		= CABLE_TYPE_ID_PIN,
 	.usb_id_pin_gpio 	= SAGA_GPIO_USB_ID_PIN,
 	.config_usb_id_gpios 	= config_saga_usb_id_gpios,
 	.get_adc_cb		= saga_get_usbid_adc,
@@ -3153,11 +3142,7 @@ static int msm_hsusb_ldo_set_voltage(int mV)
 static int phy_init_seq[] = { 0x06, 0x36, 0x0C, 0x31, 0x31, 0x32, 0x1, 0x0D, 0x1, 0x10, -1 };
 static struct msm_otg_platform_data msm_otg_pdata = {
 	.phy_init_seq		= phy_init_seq,
-#ifdef CONFIG_SAGA_OTG
-	.mode			= USB_OTG,
-#else
-        .mode			= USB_PERIPHERAL,
-#endif
+	.mode			= USB_PERIPHERAL,
 	.otg_control		= OTG_PMIC_CONTROL,
 	.power_budget		= 750,
 	.phy_type		= CI_45NM_INTEGRATED_PHY,
@@ -3298,6 +3283,13 @@ static struct android_pmem_platform_data android_pmem_adsp_pdata = {
 	.memory_type = MEMTYPE_EBI0,
 };
 
+static struct platform_device android_pmem_adsp_device = {
+       .name = "android_pmem",
+       .id = 2,
+       .dev = { .platform_data = &android_pmem_adsp_pdata },
+};
+
+#if 0
 static struct android_pmem_platform_data android_pmem_audio_pdata = {
        .name = "pmem_audio",
        .allocator_type = PMEM_ALLOCATORTYPE_BITMAP,
@@ -3305,17 +3297,13 @@ static struct android_pmem_platform_data android_pmem_audio_pdata = {
 	.memory_type = MEMTYPE_EBI0,
 };
 
-static struct platform_device android_pmem_adsp_device = {
-       .name = "android_pmem",
-       .id = 2,
-       .dev = { .platform_data = &android_pmem_adsp_pdata },
-};
-
 static struct platform_device android_pmem_audio_device = {
        .name = "android_pmem",
        .id = 4,
        .dev = { .platform_data = &android_pmem_audio_pdata },
 };
+#endif
+
 #if defined(CONFIG_CRYPTO_DEV_QCRYPTO) || \
 		defined(CONFIG_CRYPTO_DEV_QCRYPTO_MODULE) || \
 		defined(CONFIG_CRYPTO_DEV_QCEDEV) || \
@@ -3501,7 +3489,7 @@ static struct msm_serial_hs_platform_data msm_uart_dm1_pdata = {
 static struct resource bluesleep_resources[] = {
        {
                .name   = "gpio_host_wake",
-       .start  = SAGA_GPIO_BT_HOST_WAKE,
+        .start  = SAGA_GPIO_BT_HOST_WAKE,
         .end    = SAGA_GPIO_BT_HOST_WAKE,
                .flags  = IORESOURCE_IO,
        },
@@ -3513,9 +3501,9 @@ static struct resource bluesleep_resources[] = {
        },
        {
                .name   = "host_wake",
-       .start  = MSM_GPIO_TO_INT(SAGA_GPIO_BT_HOST_WAKE),
+        .start  = MSM_GPIO_TO_INT(SAGA_GPIO_BT_HOST_WAKE),
         .end    = MSM_GPIO_TO_INT(SAGA_GPIO_BT_HOST_WAKE),
-              .flags  = IORESOURCE_IRQ,
+               .flags  = IORESOURCE_IRQ,
        },
 };
 
@@ -3544,7 +3532,7 @@ struct platform_device saga_bcm_bt_lpm_device = {
 };
 #endif
 #endif
-  
+
 #ifdef CONFIG_BT
 static struct platform_device saga_rfkill = {
 	.name = "saga_rfkill",
@@ -3617,6 +3605,21 @@ struct platform_device msm_device_sdio_al = {
 	},
 };
 #endif /* CONFIG_MSM_SDIO_AL */
+
+static struct resource ram_console_resources[] = {
+	{
+		.start  = MSM_RAM_CONSOLE_BASE,
+		.end    = MSM_RAM_CONSOLE_BASE + MSM_RAM_CONSOLE_SIZE - 1,
+		.flags  = IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device ram_console_device = {
+	.name           = "ram_console",
+	.id             = -1,
+	.num_resources  = ARRAY_SIZE(ram_console_resources),
+	.resource       = ram_console_resources,
+};
 
 static struct pm8058_led_config pm_led_config[] = {
 	{
@@ -3748,6 +3751,7 @@ static struct platform_device htc_headset_mgr = {
 };
 
 static struct platform_device *devices[] __initdata = {
+	&ram_console_device,
 #if defined(CONFIG_SERIAL_MSM) || defined(CONFIG_MSM_SERIAL_DEBUGGER)
 	&msm_device_uart2,
 #endif
@@ -3773,9 +3777,6 @@ static struct platform_device *devices[] __initdata = {
 	&msm_device_nand,
 #endif
 	&msm_device_otg,
-#ifdef CONFIG_SAGA_OTG
-	&msm_device_hsusb_host,
-#endif
 	&qsd_device_spi,
 #ifdef CONFIG_MSM_SSBI
 	&msm_device_ssbi_pmic1,
@@ -3794,7 +3795,7 @@ static struct platform_device *devices[] __initdata = {
 	&msm_rotator_device,
 #endif
 	&android_pmem_adsp_device,
-	&android_pmem_audio_device,
+	/*&android_pmem_audio_device,*/
 	&msm_device_i2c,
 	&msm_device_i2c_2,
 	&hs_device,
@@ -5404,6 +5405,7 @@ static int __init pmem_adsp_size_setup(char *p)
 }
 early_param("pmem_adsp_size", pmem_adsp_size_setup);
 
+#if 0
 static unsigned pmem_audio_size = MSM_PMEM_AUDIO_SIZE;
 static int __init pmem_audio_size_setup(char *p)
 {
@@ -5411,6 +5413,7 @@ static int __init pmem_audio_size_setup(char *p)
   return 0;
 }
 early_param("pmem_audio_size", pmem_audio_size_setup);
+#endif
 
 static struct memtype_reserve msm7x30_reserve_table[] __initdata = {
 	[MEMTYPE_SMI] = {
@@ -5438,7 +5441,7 @@ static void __init size_pmem_devices(void)
 {
 #ifdef CONFIG_ANDROID_PMEM
   size_pmem_device(&android_pmem_adsp_pdata, 0, pmem_adsp_size);
-  size_pmem_device(&android_pmem_audio_pdata, 0, pmem_audio_size);
+//  size_pmem_device(&android_pmem_audio_pdata, 0, pmem_audio_size);
   size_pmem_device(&android_pmem_pdata, 0, pmem_sf_size);
   msm7x30_reserve_table[MEMTYPE_EBI0].size += PMEM_KERNEL_EBI0_SIZE;
 #endif
@@ -5456,7 +5459,7 @@ static void __init reserve_pmem_memory(void)
 {
 #ifdef CONFIG_ANDROID_PMEM
 	reserve_memory_for(&android_pmem_adsp_pdata);
-	reserve_memory_for(&android_pmem_audio_pdata);
+//	reserve_memory_for(&android_pmem_audio_pdata);
 	reserve_memory_for(&android_pmem_pdata);
 #endif
 }

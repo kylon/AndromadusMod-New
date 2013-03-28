@@ -1004,10 +1004,12 @@ static unsigned int adreno_isidle(struct kgsl_device *device)
 		GSL_RB_GET_READPTR(rb, &rb->rptr);
 		if (!device->active_cnt && (rb->rptr == rb->wptr)) {
 			/* Is the core idle? */
-			adreno_regread(device, REG_RBBM_STATUS,
-					    &rbbm_status);
-			if (rbbm_status == 0x110)
-				status = true;
+			if (adreno_dev->gpudev->irq_pending(adreno_dev) == 0) {
+				adreno_regread(device, REG_RBBM_STATUS,
+							&rbbm_status);
+				if (rbbm_status == 0x110)
+					status = true;
+			}
 		}
 	} else {
 		status = true;
@@ -1406,7 +1408,7 @@ static long adreno_ioctl(struct kgsl_device_private *dev_priv,
 static inline s64 adreno_ticks_to_us(u32 ticks, u32 gpu_freq)
 {
 	s64 ticksus = (s64)ticks*1000000;
-        return div_u64(ticksus, gpu_freq);
+	return div_u64(ticksus, gpu_freq);
 }
 
 static void adreno_power_stats(struct kgsl_device *device,

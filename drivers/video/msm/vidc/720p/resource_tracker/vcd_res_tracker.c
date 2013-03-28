@@ -725,9 +725,6 @@ void res_trk_init(struct device *device, u32 irq)
 			}
 			VCDRES_MSG_LOW("%s(): ion_client = 0x%x", __func__,
 				(u32)resource_context.res_ion_client);
-		} else {
-			VCDRES_MSG_ERROR("%s(): ION not disabled\n",
-					__func__);
 		}
 	} else {
 		resource_context.memtype = -1;

@@ -9,7 +9,11 @@
 #include <asm/gpio.h>
 #include <asm/io.h>
 #include <linux/skbuff.h>
+#ifdef CONFIG_BCMDHD_GOOGLE
+#include <linux/wlan_plat.h>
+#else
 #include <linux/wifi_tiwlan.h>
+#endif
 
 #include "board-saga.h"
 
@@ -77,7 +81,11 @@ static struct resource saga_wifi_resources[] = {
 		.name		= "bcm4329_wlan_irq",
 		.start		= MSM_GPIO_TO_INT(SAGA_GPIO_WIFI_IRQ),
 		.end		= MSM_GPIO_TO_INT(SAGA_GPIO_WIFI_IRQ),
+#if defined(CONFIG_BCMDHD_GOOGLE)
+                .flags          = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL | IORESOURCE_IRQ_SHAREABLE,
+#else
 		.flags          = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
+#endif
 	},
 };
 
@@ -86,7 +94,9 @@ static struct wifi_platform_data saga_wifi_control = {
 	.set_reset      = saga_wifi_reset,
 	.set_carddetect = saga_wifi_set_carddetect,
 	.mem_prealloc   = saga_wifi_mem_prealloc,
+#ifndef CONFIG_BCMDHD_GOOGLE
 	.dot11n_enable  = 1,
+#endif
 };
 
 static struct platform_device saga_wifi_device = {
