@@ -56,7 +56,7 @@
 struct rtnl_link {
 	rtnl_doit_func		doit;
 	rtnl_dumpit_func	dumpit;
-	rtnl_calcit_func        calcit;
+	rtnl_calcit_func 	calcit;
 };
 
 static DEFINE_MUTEX(rtnl_mutex);
@@ -147,17 +147,17 @@ static rtnl_dumpit_func rtnl_get_dumpit(int protocol, int msgindex)
 
 static rtnl_calcit_func rtnl_get_calcit(int protocol, int msgindex)
 {
-        struct rtnl_link *tab;
+	struct rtnl_link *tab;
 
-        if (protocol <= RTNL_FAMILY_MAX)
-                tab = rtnl_msg_handlers[protocol];
-        else
-                tab = NULL;
- 
-        if (tab == NULL || tab[msgindex].calcit == NULL)
-                tab = rtnl_msg_handlers[PF_UNSPEC];
- 
-        return tab ? tab[msgindex].calcit : NULL;
+	if (protocol <= RTNL_FAMILY_MAX)
+		tab = rtnl_msg_handlers[protocol];
+	else
+		tab = NULL;
+
+	if (tab == NULL || tab[msgindex].calcit == NULL)
+		tab = rtnl_msg_handlers[PF_UNSPEC];
+
+	return tab ? tab[msgindex].calcit : NULL;
 }
 
 /**
@@ -180,7 +180,7 @@ static rtnl_calcit_func rtnl_get_calcit(int protocol, int msgindex)
  */
 int __rtnl_register(int protocol, int msgtype,
 		    rtnl_doit_func doit, rtnl_dumpit_func dumpit,
-                    rtnl_calcit_func calcit)
+		    rtnl_calcit_func calcit)
 {
 	struct rtnl_link *tab;
 	int msgindex;
@@ -203,8 +203,8 @@ int __rtnl_register(int protocol, int msgtype,
 	if (dumpit)
 		tab[msgindex].dumpit = dumpit;
 
-        if (calcit)
-                tab[msgindex].calcit = calcit;
+	if (calcit)
+		tab[msgindex].calcit = calcit;
 
 	return 0;
 }
@@ -221,7 +221,7 @@ EXPORT_SYMBOL_GPL(__rtnl_register);
  */
 void rtnl_register(int protocol, int msgtype,
 		   rtnl_doit_func doit, rtnl_dumpit_func dumpit,
-                   rtnl_calcit_func calcit)
+		   rtnl_calcit_func calcit)
 {
 	if (__rtnl_register(protocol, msgtype, doit, dumpit, calcit) < 0)
 		panic("Unable to register rtnetlink message handler, "
@@ -727,10 +727,10 @@ static void copy_rtnl_link_stats64(void *v, const struct rtnl_link_stats64 *b)
 
 /* All VF info */
 static inline int rtnl_vfinfo_size(const struct net_device *dev,
-                                   u32 ext_filter_mask)
+				   u32 ext_filter_mask)
 {
 	if (dev->dev.parent && dev_is_pci(dev->dev.parent) &&
-            (ext_filter_mask & RTEXT_FILTER_VF)) {
+	    (ext_filter_mask & RTEXT_FILTER_VF)) {
 		int num_vfs = dev_num_vf(dev->dev.parent);
 		size_t size = nla_total_size(sizeof(struct nlattr));
 		size += nla_total_size(num_vfs * sizeof(struct nlattr));
@@ -769,7 +769,7 @@ static size_t rtnl_port_size(const struct net_device *dev)
 }
 
 static noinline size_t if_nlmsg_size(const struct net_device *dev,
-                                     u32 ext_filter_mask)
+				     u32 ext_filter_mask)
 {
 	return NLMSG_ALIGN(sizeof(struct ifinfomsg))
 	       + nla_total_size(IFNAMSIZ) /* IFLA_IFNAME */
@@ -788,8 +788,8 @@ static noinline size_t if_nlmsg_size(const struct net_device *dev,
 	       + nla_total_size(1) /* IFLA_OPERSTATE */
 	       + nla_total_size(1) /* IFLA_LINKMODE */
 	       + nla_total_size(ext_filter_mask
-                                & RTEXT_FILTER_VF ? 4 : 0) /* IFLA_NUM_VF */
-               + rtnl_vfinfo_size(dev, ext_filter_mask) /* IFLA_VFINFO_LIST */
+			        & RTEXT_FILTER_VF ? 4 : 0) /* IFLA_NUM_VF */
+	       + rtnl_vfinfo_size(dev, ext_filter_mask) /* IFLA_VFINFO_LIST */
 	       + rtnl_port_size(dev) /* IFLA_VF_PORTS + IFLA_PORT_SELF */
 	       + rtnl_link_get_size(dev) /* IFLA_LINKINFO */
 	       + rtnl_link_get_af_size(dev); /* IFLA_AF_SPEC */
@@ -873,7 +873,6 @@ static int rtnl_port_fill(struct sk_buff *skb, struct net_device *dev)
 static int rtnl_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
 			    int type, u32 pid, u32 seq, u32 change,
 			    unsigned int flags, u32 ext_filter_mask)
-			    
 {
 	struct ifinfomsg *ifm;
 	struct nlmsghdr *nlh;
@@ -950,7 +949,7 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
 		NLA_PUT_U32(skb, IFLA_NUM_VF, dev_num_vf(dev->dev.parent));
 
 	if (dev->netdev_ops->ndo_get_vf_config && dev->dev.parent
-            && (ext_filter_mask & RTEXT_FILTER_VF)) {
+	    && (ext_filter_mask & RTEXT_FILTER_VF)) {
 		int i;
 
 		struct nlattr *vfinfo, *vf;
@@ -1039,19 +1038,19 @@ static int rtnl_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 	struct hlist_head *head;
 	struct hlist_node *node;
 	struct nlattr *tb[IFLA_MAX+1];
-        u32 ext_filter_mask = 0;
+	u32 ext_filter_mask = 0;
 
 	s_h = cb->args[0];
 	s_idx = cb->args[1];
 
 	rcu_read_lock();
-	
+
 	if (nlmsg_parse(cb->nlh, sizeof(struct rtgenmsg), tb, IFLA_MAX,
-                        ifla_policy) >= 0) {
- 
-        if (tb[IFLA_EXT_MASK])
-                        ext_filter_mask = nla_get_u32(tb[IFLA_EXT_MASK]);
-        }
+			ifla_policy) >= 0) {
+
+		if (tb[IFLA_EXT_MASK])
+			ext_filter_mask = nla_get_u32(tb[IFLA_EXT_MASK]);
+	}
 
 	for (h = s_h; h < NETDEV_HASHENTRIES; h++, s_idx = 0) {
 		idx = 0;
@@ -1097,7 +1096,7 @@ const struct nla_policy ifla_policy[IFLA_MAX+1] = {
 	[IFLA_VF_PORTS]		= { .type = NLA_NESTED },
 	[IFLA_PORT_SELF]	= { .type = NLA_NESTED },
 	[IFLA_AF_SPEC]		= { .type = NLA_NESTED },
-	[IFLA_EXT_MASK]         = { .type = NLA_U32 },
+	[IFLA_EXT_MASK]		= { .type = NLA_U32 },
 };
 EXPORT_SYMBOL(ifla_policy);
 
@@ -1838,9 +1837,9 @@ static int rtnl_getlink(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 
 	if (tb[IFLA_IFNAME])
 		nla_strlcpy(ifname, tb[IFLA_IFNAME], IFNAMSIZ);
-		
+
 	if (tb[IFLA_EXT_MASK])
-                ext_filter_mask = nla_get_u32(tb[IFLA_EXT_MASK]);
+		ext_filter_mask = nla_get_u32(tb[IFLA_EXT_MASK]);
 
 	ifm = nlmsg_data(nlh);
 	if (ifm->ifi_index > 0)
@@ -1871,31 +1870,31 @@ static int rtnl_getlink(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 
 static u16 rtnl_calcit(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
-        struct net *net = sock_net(skb->sk);
-        struct net_device *dev;
-        struct nlattr *tb[IFLA_MAX+1];
-        u32 ext_filter_mask = 0;
-        u16 min_ifinfo_dump_size = 0;
- 
-         if (nlmsg_parse(nlh, sizeof(struct rtgenmsg), tb, IFLA_MAX,
-                        ifla_policy) >= 0) {
-                if (tb[IFLA_EXT_MASK])
-                        ext_filter_mask = nla_get_u32(tb[IFLA_EXT_MASK]);
-        }
- 
-        if (!ext_filter_mask)
-                return NLMSG_GOODSIZE;
-        /*
-         * traverse the list of net devices and compute the minimum
-         * buffer size based upon the filter mask.
-         */
-        list_for_each_entry(dev, &net->dev_base_head, dev_list) {
-                min_ifinfo_dump_size = max_t(u16, min_ifinfo_dump_size,
-                                             if_nlmsg_size(dev,
-                                                           ext_filter_mask));
-        }
+	struct net *net = sock_net(skb->sk);
+	struct net_device *dev;
+	struct nlattr *tb[IFLA_MAX+1];
+	u32 ext_filter_mask = 0;
+	u16 min_ifinfo_dump_size = 0;
 
-        return min_ifinfo_dump_size;
+	if (nlmsg_parse(nlh, sizeof(struct rtgenmsg), tb, IFLA_MAX,
+			ifla_policy) >= 0) {
+		if (tb[IFLA_EXT_MASK])
+			ext_filter_mask = nla_get_u32(tb[IFLA_EXT_MASK]);
+	}
+
+	if (!ext_filter_mask)
+		return NLMSG_GOODSIZE;
+	/*
+	 * traverse the list of net devices and compute the minimum
+	 * buffer size based upon the filter mask.
+	 */
+	list_for_each_entry(dev, &net->dev_base_head, dev_list) {
+		min_ifinfo_dump_size = max_t(u16, min_ifinfo_dump_size,
+					     if_nlmsg_size(dev,
+						           ext_filter_mask));
+	}
+
+	return min_ifinfo_dump_size;
 }
 
 static int rtnl_dump_all(struct sk_buff *skb, struct netlink_callback *cb)
@@ -1927,12 +1926,12 @@ void rtmsg_ifinfo(int type, struct net_device *dev, unsigned change)
 	struct net *net = dev_net(dev);
 	struct sk_buff *skb;
 	int err = -ENOBUFS;
-        size_t if_info_size;
-        
+	size_t if_info_size;
+
 	skb = nlmsg_new((if_info_size = if_nlmsg_size(dev, 0)), GFP_KERNEL);
 	if (skb == NULL)
 		goto errout;
-		
+
 	err = rtnl_fill_ifinfo(skb, dev, type, 0, 0, change, 0, 0);
 	if (err < 0) {
 		/* -EMSGSIZE implies BUG in if_nlmsg_size() */
@@ -1984,19 +1983,19 @@ static int rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		struct sock *rtnl;
 		rtnl_dumpit_func dumpit;
 		rtnl_calcit_func calcit;
-                u16 min_dump_alloc = 0;
+		u16 min_dump_alloc = 0;
 
 		dumpit = rtnl_get_dumpit(family, type);
 		if (dumpit == NULL)
 			return -EOPNOTSUPP;
 		calcit = rtnl_get_calcit(family, type);
-                if (calcit)
-                        min_dump_alloc = calcit(skb, nlh);
+		if (calcit)
+			min_dump_alloc = calcit(skb, nlh);
 
 		__rtnl_unlock();
 		rtnl = net->rtnl;
 		err = netlink_dump_start(rtnl, skb, nlh, dumpit,
-                                         NULL, min_dump_alloc);
+					 NULL, min_dump_alloc);
 		rtnl_lock();
 		return err;
 	}
@@ -2012,7 +2011,7 @@ static int rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		struct rtattr *attr = (void *)nlh + NLMSG_ALIGN(min_len);
 
 		while (RTA_OK(attr, attrlen)) {
-			unsigned flavor = attr->rta_type;
+			unsigned int flavor = attr->rta_type & NLA_TYPE_MASK;
 			if (flavor) {
 				if (flavor > rta_max[sz_idx])
 					return -EINVAL;
@@ -2107,12 +2106,12 @@ void __init rtnetlink_init(void)
 	register_netdevice_notifier(&rtnetlink_dev_notifier);
 
 	rtnl_register(PF_UNSPEC, RTM_GETLINK, rtnl_getlink,
-                      rtnl_dump_ifinfo, rtnl_calcit);
-        rtnl_register(PF_UNSPEC, RTM_SETLINK, rtnl_setlink, NULL, NULL);
-        rtnl_register(PF_UNSPEC, RTM_NEWLINK, rtnl_newlink, NULL, NULL);
-        rtnl_register(PF_UNSPEC, RTM_DELLINK, rtnl_dellink, NULL, NULL);
+		      rtnl_dump_ifinfo, rtnl_calcit);
+	rtnl_register(PF_UNSPEC, RTM_SETLINK, rtnl_setlink, NULL, NULL);
+	rtnl_register(PF_UNSPEC, RTM_NEWLINK, rtnl_newlink, NULL, NULL);
+	rtnl_register(PF_UNSPEC, RTM_DELLINK, rtnl_dellink, NULL, NULL);
 
 	rtnl_register(PF_UNSPEC, RTM_GETADDR, NULL, rtnl_dump_all, NULL);
-        rtnl_register(PF_UNSPEC, RTM_GETROUTE, NULL, rtnl_dump_all, NULL);
+	rtnl_register(PF_UNSPEC, RTM_GETROUTE, NULL, rtnl_dump_all, NULL);
 }
 

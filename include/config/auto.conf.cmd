@@ -435,6 +435,7 @@ deps_config := \
 	drivers/net/wireless/iwlwifi/Kconfig \
 	drivers/net/wireless/ipw2x00/Kconfig \
 	drivers/net/wireless/hostap/Kconfig \
+	drivers/net/wireless/bcmdhd_htc/Kconfig \
 	drivers/net/wireless/bcmdhd/Kconfig \
 	drivers/net/wireless/bcm4329/Kconfig \
 	drivers/net/wireless/b43legacy/Kconfig \
@@ -688,7 +689,7 @@ deps_config := \
 include/config/auto.conf: \
 	$(deps_config)
 
-ifneq "$(KERNELVERSION)" "3.0.70"
+ifneq "$(KERNELVERSION)" "3.0.71"
 include/config/auto.conf: FORCE
 endif
 ifneq "$(ARCH)" "arm"
