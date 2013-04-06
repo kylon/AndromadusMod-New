@@ -3069,8 +3069,14 @@ int netdev_rx_handler_register(struct net_device *dev,
 
 	if (dev->rx_handler)
 		return -EBUSY;
-
+        
+        /* Note: rx_handler_data must be set before rx_handler */
 	rcu_assign_pointer(dev->rx_handler_data, rx_handler_data);
+	/* a reader seeing a non NULL rx_handler in a rcu_read_lock()
+         * section has a guarantee to see a non NULL rx_handler_data
+         * as well.
+         */
+        synchronize_net();
 	rcu_assign_pointer(dev->rx_handler, rx_handler);
 
 	return 0;

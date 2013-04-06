@@ -390,7 +390,7 @@ static void __sco_sock_close(struct sock *sk)
 	case BT_LISTEN:
 		sco_sock_cleanup_listen(sk);
 		break;
-
+        
 	case BT_CONNECTED:
 	case BT_CONFIG:
 		if (sco_pi(sk)->conn) {
@@ -401,7 +401,8 @@ static void __sco_sock_close(struct sock *sk)
 		} else
 			sco_chan_del(sk, ECONNRESET);
 		break;
-
+        
+        case BT_CONNECT2:
 	case BT_CONNECT:
 	case BT_DISCONN:
 		sco_chan_del(sk, ECONNRESET);

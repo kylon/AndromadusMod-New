@@ -1,6 +1,6 @@
 /*
  * Automatically generated C config: don't edit
- * Linux/arm 3.0.71 Kernel Configuration
+ * Linux/arm 3.0.72 Kernel Configuration
  */
 #define CONFIG_IP6_NF_MATCH_AH 1
 #define CONFIG_NF_CONNTRACK_H323 1
