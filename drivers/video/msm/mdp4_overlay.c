@@ -1568,9 +1568,13 @@ int mdp4_mixer_info(int mixer_num, struct mdp_mixer_info *info)
 	cnt = 0;
 	ndx = MDP4_MIXER_STAGE_BASE;
 	for ( ; ndx < MDP4_MIXER_STAGE_MAX; ndx++) {
-		pipe = ctrl->stage[mixer_num][ndx];
+		pipe = &ctrl->plist[ndx]; 
 		if (pipe == NULL)
 			continue;
+		
+		if (!pipe->pipe_used)
+                  continue; 
+
 		info->z_order = pipe->mixer_stage - MDP4_MIXER_STAGE0;
 		/* z_order == -1, means base layer */
 		info->ptype = pipe->pipe_type;
@@ -3764,3 +3768,12 @@ int mdp4_update_base_blend(struct msm_fb_data_type *mfd,
 	}
 	return ret;
 }
+
+int mdp4_overlay_reset()
+{
+        memset(&perf_request, 0, sizeof(perf_request));
+        memset(&perf_current, 0, sizeof(perf_current));
+        perf_request.mdp_bw = OVERLAY_PERF_LEVEL4;
+        perf_current.mdp_bw = OVERLAY_PERF_LEVEL4;
+        return 0;
+} 
