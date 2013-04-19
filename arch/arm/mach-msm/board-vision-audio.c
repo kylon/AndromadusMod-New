@@ -285,7 +285,7 @@ void __init vision_audio_init(void)
 	htc_7x30_register_voice_ops(&vops);
 	acoustic_register_ops(&acoustic);
 #endif
-	pm8xxx_gpio_config(VISION_AUD_SPK_ENO, &audio_pwr);
+	pm8xxx_gpio_config(PM8058_GPIO_PM_TO_SYS(VISION_AUD_SPK_ENO), &audio_pwr);
 
 	mutex_lock(&bt_sco_lock);
 	config_gpio_table(aux_pcm_gpio_off, ARRAY_SIZE(aux_pcm_gpio_off));

@@ -2030,6 +2030,24 @@ static struct msm_serial_hs_platform_data msm_uart_dm1_pdata = {
 	.host_wakeup_pin = VISION_GPIO_BT_HOST_WAKE,
 };
 
+#ifdef CONFIG_SERIAL_MSM_HS_PURE_ANDROID
+static struct bcm_bt_lpm_platform_data bcm_bt_lpm_pdata = {
+	.gpio_wake = VISION_GPIO_BT_CHIP_WAKE,
+	.gpio_host_wake = VISION_GPIO_BT_HOST_WAKE,
+	.request_clock_off_locked = msm_hs_request_clock_off_locked,
+	.request_clock_on_locked = msm_hs_request_clock_on_locked,
+};
+
+struct platform_device vision_bcm_bt_lpm_device = {
+	.name = "bcm_bt_lpm",
+	.id = 0,
+	.dev = {
+		.platform_data = &bcm_bt_lpm_pdata,
+	},
+};
+#endif
+
+#ifdef CONFIG_BT_MSM_SLEEP
 static struct resource bluesleep_resources[] = {
 	{
 		.name	= "gpio_host_wake",
@@ -2051,27 +2069,11 @@ static struct resource bluesleep_resources[] = {
 	},
 };
 
-#ifdef CONFIG_SERIAL_MSM_HS_PURE_ANDROID
-static struct bcm_bt_lpm_platform_data bcm_bt_lpm_pdata = {
-	.gpio_wake = VISION_GPIO_BT_CHIP_WAKE,
-	.gpio_host_wake = VISION_GPIO_BT_HOST_WAKE,
-	.request_clock_off_locked = msm_hs_request_clock_off_locked,
-	.request_clock_on_locked = msm_hs_request_clock_on_locked,
-};
-
 static struct platform_device msm_bluesleep_device = {
 	.name   = "bluesleep_bcm",
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(bluesleep_resources),
 	.resource	= bluesleep_resources,
-};
-
-struct platform_device vision_bcm_bt_lpm_device = {
-	.name = "bcm_bt_lpm",
-	.id = 0,
-	.dev = {
-		.platform_data = &bcm_bt_lpm_pdata,
-	},
 };
 #endif
 #endif
