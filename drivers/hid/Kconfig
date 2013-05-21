@@ -70,7 +70,7 @@ config UHID
  
         To compile this driver as a module, choose M here: the
         module will be called uhid. 
-
+        
 source "drivers/hid/usbhid/Kconfig"
 
 menu "Special HID drivers"
