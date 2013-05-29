@@ -213,6 +213,14 @@ config CRAZY_OC
        default n
        help
          This will add 1.9Ghz and 2.0Ghz !!
+
+config GPU_OC
+       bool "Overclock Adreno 205+"
+       default n
+       help
+         Enable 266Mhz for Adreno 205+
+         
+         Do not expect a huge improvement but a faster UI and a little improvement for games
          
 endmenu
 
