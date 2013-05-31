@@ -2256,15 +2256,27 @@ void config_saga_usb_id_gpios(bool output)
 #define PM8058ADC_16BIT(adc) ((adc * 2200) / 65535) /* vref=2.2v, 16-bits resolution */
 int64_t saga_get_usbid_adc(void)
 {
+#ifdef CONFIG_SAGA_OTG
+        uint32_t adc_value; //= 0xffffffff;
+         
+         htc_get_usb_accessory_adc_level(&adc_value);
+   adc_value = PM8058ADC_16BIT(adc_value);
+#else 
 	uint32_t adc_value = 0xffffffff;
-/*
+       /*
 	htc_get_usb_accessory_adc_level(&adc_value);
-	adc_value = PM8058ADC_16BIT(adc_value);*/
+	adc_value = PM8058ADC_16BIT(adc_value);
+	*/
+#endif 
 	return adc_value;
 }
 
 static struct cable_detect_platform_data cable_detect_pdata = {
-	.detect_type 		= CABLE_TYPE_ID_PIN,
+#ifdef CONFIG_SAGA_OTG
+         .detect_type     = CABLE_TYPE_PMIC_ADC,
+#else
+         .detect_type     = CABLE_TYPE_ID_PIN,
+#endif 
 	.usb_id_pin_gpio 	= SAGA_GPIO_USB_ID_PIN,
 	.config_usb_id_gpios 	= config_saga_usb_id_gpios,
 	.get_adc_cb		= saga_get_usbid_adc,
@@ -3142,7 +3154,11 @@ static int msm_hsusb_ldo_set_voltage(int mV)
 static int phy_init_seq[] = { 0x06, 0x36, 0x0C, 0x31, 0x31, 0x32, 0x1, 0x0D, 0x1, 0x10, -1 };
 static struct msm_otg_platform_data msm_otg_pdata = {
 	.phy_init_seq		= phy_init_seq,
-	.mode			= USB_PERIPHERAL,
+#ifdef CONFIG_SAGA_OTG 
+	.mode                   = USB_OTG,
+#else
+        .mode                   = USB_PERIPHERAL,
+#endif 
 	.otg_control		= OTG_PMIC_CONTROL,
 	.power_budget		= 750,
 	.phy_type		= CI_45NM_INTEGRATED_PHY,
@@ -3777,6 +3793,9 @@ static struct platform_device *devices[] __initdata = {
 	&msm_device_nand,
 #endif
 	&msm_device_otg,
+#ifdef CONFIG_SAGA_OTG 
+        &msm_device_hsusb_host,
+#endif
 	&qsd_device_spi,
 #ifdef CONFIG_MSM_SSBI
 	&msm_device_ssbi_pmic1,
