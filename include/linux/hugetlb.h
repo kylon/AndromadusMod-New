@@ -161,7 +161,7 @@ struct hugetlbfs_sb_info {
 	long	free_inodes;  /* inodes free */
 	spinlock_t	stat_lock;
 	struct hstate *hstate;
-    struct hugepage_subpool *spool;
+	struct hugepage_subpool *spool;
 };
 
 
