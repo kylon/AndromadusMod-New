@@ -360,21 +360,6 @@ static inline struct page *compound_head(struct page *page)
 	return page;
 }
 
-/*
- * The atomic page->_mapcount, starts from -1: so that transitions
- * both from it and to it can be tracked, using atomic_inc_and_test
- * and atomic_add_negative(-1).
- */
-static inline void reset_page_mapcount(struct page *page)
-{
-	atomic_set(&(page)->_mapcount, -1);
-}
-
-static inline int page_mapcount(struct page *page)
-{
-	return atomic_read(&(page)->_mapcount) + 1;
-}
-
 static inline int page_count(struct page *page)
 {
 	return atomic_read(&compound_head(page)->_count);
@@ -656,7 +641,7 @@ static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
 #define SECTIONS_MASK		((1UL << SECTIONS_WIDTH) - 1)
 #define ZONEID_MASK		((1UL << ZONEID_SHIFT) - 1)
 
-static inline enum zone_type page_zonenum(const struct page *page)
+static inline enum zone_type page_zonenum(struct page *page)
 {
 	return (page->flags >> ZONES_PGSHIFT) & ZONES_MASK;
 }
@@ -684,15 +669,15 @@ static inline int zone_to_nid(struct zone *zone)
 }
 
 #ifdef NODE_NOT_IN_PAGE_FLAGS
-extern int page_to_nid(const struct page *page);
+extern int page_to_nid(struct page *page);
 #else
-static inline int page_to_nid(const struct page *page)
+static inline int page_to_nid(struct page *page)
 {
 	return (page->flags >> NODES_PGSHIFT) & NODES_MASK;
 }
 #endif
 
-static inline struct zone *page_zone(const struct page *page)
+static inline struct zone *page_zone(struct page *page)
 {
 	return &NODE_DATA(page_to_nid(page))->node_zones[page_zonenum(page)];
 }
@@ -704,7 +689,7 @@ static inline void set_page_section(struct page *page, unsigned long section)
 	page->flags |= (section & SECTIONS_MASK) << SECTIONS_PGSHIFT;
 }
 
-static inline unsigned long page_to_section(const struct page *page)
+static inline unsigned long page_to_section(struct page *page)
 {
 	return (page->flags >> SECTIONS_PGSHIFT) & SECTIONS_MASK;
 }
@@ -737,7 +722,7 @@ static inline void set_page_links(struct page *page, enum zone_type zone,
  */
 #include <linux/vmstat.h>
 
-static __always_inline void *lowmem_page_address(const struct page *page)
+static __always_inline void *lowmem_page_address(struct page *page)
 {
 	return __va(PFN_PHYS(page_to_pfn(page)));
 }
@@ -756,7 +741,7 @@ static __always_inline void *lowmem_page_address(const struct page *page)
 #endif
 
 #if defined(HASHED_PAGE_VIRTUAL)
-void *page_address(const struct page *page);
+void *page_address(struct page *page);
 void set_page_address(struct page *page, void *virtual);
 void page_address_init(void);
 #endif
@@ -1645,6 +1630,23 @@ extern void copy_user_huge_page(struct page *dst, struct page *src,
 				unsigned long addr, struct vm_area_struct *vma,
 				unsigned int pages_per_huge_page);
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE || CONFIG_HUGETLBFS */
+
+#ifdef CONFIG_DEBUG_PAGEALLOC
+extern unsigned int _debug_guardpage_minorder;
+
+static inline unsigned int debug_guardpage_minorder(void)
+{
+       return _debug_guardpage_minorder;
+}
+
+static inline bool page_is_guard(struct page *page)
+{
+       return test_bit(PAGE_DEBUG_FLAG_GUARD, &page->debug_flags);
+}
+#else
+static inline unsigned int debug_guardpage_minorder(void) { return 0; }
+static inline bool page_is_guard(struct page *page) { return false; }
+#endif /* CONFIG_DEBUG_PAGEALLOC */
 
 #endif /* __KERNEL__ */
 #endif /* _LINUX_MM_H */
