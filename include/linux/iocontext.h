@@ -17,9 +17,9 @@ struct cfq_io_context {
 	unsigned long ttime_total;
 	unsigned long ttime_samples;
 	unsigned long ttime_mean;
-        
-        unsigned int raising_time_left;
-        unsigned int saved_idle_window;
+
+	unsigned int raising_time_left;
+	unsigned int saved_idle_window;
 
 	struct list_head queue_list;
 	struct hlist_node cic_list;
