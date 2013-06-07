@@ -60,7 +60,7 @@ static int lowmem_minfree[6] = {
 static int lowmem_minfree_size = 4;
 
 static unsigned long lowmem_deathpending_timeout;
-extern int compact_nodes(void); 
+extern int compact_nodes(); 
 
 #define lowmem_print(level, x...)			\
 	do {						\
@@ -163,7 +163,7 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 	rcu_read_unlock();
 	
 	if (selected)
-            compact_nodes(); 
+            compact_nodes(false); 
 
 	return rem;
 }

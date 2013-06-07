@@ -201,7 +201,7 @@ struct swap_list_t {
 	int next;	/* swapfile to be used next */
 };
 
-/* Swap 50% full? */
+/* Swap 50% full? Release swapcache more aggressively.. */
 #define vm_swap_full() (nr_swap_pages*2 < total_swap_pages)
 
 /* linux/mm/page_alloc.c */
@@ -249,6 +249,8 @@ static inline void lru_cache_add_file(struct page *page)
 {
 	____lru_cache_add(page, LRU_INACTIVE_FILE, 0);
 }
+
+#define ISOLATE_BOTH 2		/* Isolate both active and inactive pages. */
 
 /* linux/mm/vmscan.c */
 extern unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
@@ -352,7 +354,6 @@ extern void grab_swap_token(struct mm_struct *);
 extern void __put_swap_token(struct mm_struct *);
 extern void disable_swap_token(struct mem_cgroup *memcg);
 
-/* Only allow swap token to have effect if swap is full */
 static inline int has_swap_token(struct mm_struct *mm)
 {
 	return (mm == swap_token_mm && vm_swap_full());
