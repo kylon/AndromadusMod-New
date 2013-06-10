@@ -15,7 +15,6 @@
 #include <linux/seqlock.h>
 #include <linux/nodemask.h>
 #include <linux/pageblock-flags.h>
-#include <linux/timer.h>
 #include <generated/bounds.h>
 #include <asm/atomic.h>
 #include <asm/page.h>
@@ -181,14 +180,12 @@ enum zone_watermarks {
 	WMARK_MIN,
 	WMARK_LOW,
 	WMARK_HIGH,
-	WMARK_LOTS,
 	NR_WMARK
 };
 
 #define min_wmark_pages(z) (z->watermark[WMARK_MIN])
 #define low_wmark_pages(z) (z->watermark[WMARK_LOW])
 #define high_wmark_pages(z) (z->watermark[WMARK_HIGH])
-#define lots_wmark_pages(z) (z->watermark[WMARK_LOTS])
 
 struct per_cpu_pages {
 	int count;		/* number of pages in the list */
@@ -668,7 +665,6 @@ typedef struct pglist_data {
 	wait_queue_head_t kswapd_wait;
 	struct task_struct *kswapd;	/* Protected by lock_memory_hotplug() */
 	int kswapd_max_order;
-	struct timer_list watermark_timer;
 	enum zone_type classzone_idx;
 } pg_data_t;
 
