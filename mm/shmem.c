@@ -2940,7 +2940,7 @@ int shmem_zero_setup(struct vm_area_struct *vma)
 	shmem_set_file(vma, file);
 	return 0;
 }
-F
+
 /**
  * shmem_read_mapping_page_gfp - read into page cache, using specified page allocation flags.
  * @mapping:	the page's address_space

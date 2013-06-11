@@ -274,7 +274,7 @@ static inline int zone_reclaim(struct zone *z, gfp_t mask, unsigned int order)
 #endif
 
 extern int page_evictable(struct page *page, struct vm_area_struct *vma);
-extern void check_move_unevictable_pages(struct page **, int nr_pages);
+extern void scan_mapping_unevictable_pages(struct address_space *); 
 
 extern unsigned long scan_unevictable_pages;
 extern int scan_unevictable_handler(struct ctl_table *, int,
