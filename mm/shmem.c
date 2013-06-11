@@ -28,7 +28,6 @@
 #include <linux/file.h>
 #include <linux/mm.h>
 #include <linux/module.h>
-#include <linux/percpu_counter.h>
 #include <linux/swap.h>
 
 static struct vfsmount *shm_mnt;
@@ -51,6 +50,9 @@ static struct vfsmount *shm_mnt;
 #include <linux/shmem_fs.h>
 #include <linux/writeback.h>
 #include <linux/blkdev.h>
+#include <linux/pagevec.h>
+#include <linux/percpu_counter.h>
+#include <linux/splice.h>
 #include <linux/security.h>
 #include <linux/swapops.h>
 #include <linux/mempolicy.h>
@@ -62,21 +64,8 @@ static struct vfsmount *shm_mnt;
 #include <linux/magic.h>
 
 #include <asm/uaccess.h>
-#include <asm/div64.h>
 #include <asm/pgtable.h>
 
-/*
- * The maximum size of a shmem/tmpfs file is limited by the maximum size of
- * its triple-indirect swap vector - see illustration at shmem_swp_entry().
- *
- * With 4kB page size, maximum file size is just over 2TB on a 32-bit kernel,
- * but one eighth of that on a 64-bit kernel.  With 8kB page size, maximum
- * file size is just over 4TB on a 64-bit kernel, but 16TB on a 32-bit kernel,
- * MAX_LFS_FILESIZE being then more restrictive than swap vector layout.
- *
- * We use / and * instead of shifts in the definitions below, so that the swap
- * vector can be tested with small even values (e.g. 20) for ENTRIES_PER_PAGE.
- */
 #define ENTRIES_PER_PAGE (PAGE_CACHE_SIZE/sizeof(unsigned long))
 #define ENTRIES_PER_PAGEPAGE ((unsigned long long)ENTRIES_PER_PAGE*ENTRIES_PER_PAGE)
 
@@ -88,12 +77,8 @@ static struct vfsmount *shm_mnt;
 
 #define BLOCKS_PER_PAGE  (PAGE_CACHE_SIZE/512)
 #define VM_ACCT(size)    (PAGE_CACHE_ALIGN(size) >> PAGE_SHIFT)
-
-/* info->flags needs VM_flags to handle pagein/truncate races efficiently */
 #define SHMEM_PAGEIN	 VM_READ
 #define SHMEM_TRUNCATE	 VM_WRITE
-
-/* Definition to limit shmem_truncate's steps between cond_rescheds */
 #define LATENCY_LIMIT	 64
 
 /* Pretend that each entry is of this size in directory's i_size */
@@ -106,7 +91,7 @@ struct shmem_xattr {
 	char value[0];
 };
 
-/* Flag allocation requirements to shmem_getpage and shmem_swp_alloc */
+/* Flag allocation requirements to shmem_getpage */
 enum sgp_type {
 	SGP_READ,	/* don't exceed i_size, don't allocate page */
 	SGP_CACHE,	/* don't exceed i_size, may allocate page */
@@ -131,13 +116,6 @@ static int shmem_getpage(struct inode *inode, unsigned long idx,
 
 static inline struct page *shmem_dir_alloc(gfp_t gfp_mask)
 {
-	/*
-	 * The above definition of ENTRIES_PER_PAGE, and the use of
-	 * BLOCKS_PER_PAGE on indirect pages, assume PAGE_CACHE_SIZE:
-	 * might be reconsidered if it ever diverges from PAGE_SIZE.
-	 *
-	 * Mobility flags are masked out as swap vectors cannot move
-	 */
 	return alloc_pages((gfp_mask & ~GFP_MOVABLE_MASK) | __GFP_ZERO,
 				PAGE_CACHE_SHIFT-PAGE_SHIFT);
 }
@@ -273,7 +251,7 @@ static void shmem_free_inode(struct super_block *sb)
 }
 
 /**
- * shmem_recalc_inode - recalculate the size of an inode
+ * shmem_recalc_inode - recalculate the block usage of an inode
  * @inode: inode to recalc
  *
  * We have to calculate the free blocks since the mm can drop
@@ -297,42 +275,8 @@ static void shmem_recalc_inode(struct inode *inode)
 	}
 }
 
-/**
- * shmem_swp_entry - find the swap vector position in the info structure
- * @info:  info structure for the inode
- * @index: index of the page to find
- * @page:  optional page to add to the structure. Has to be preset to
- *         all zeros
- *
- * If there is no space allocated yet it will return NULL when
- * page is NULL, else it will use the page for the needed block,
- * setting it to NULL on return to indicate that it has been used.
- *
- * The swap vector is organized the following way:
- *
- * There are SHMEM_NR_DIRECT entries directly stored in the
- * shmem_inode_info structure. So small files do not need an addional
- * allocation.
- *
- * For pages with index > SHMEM_NR_DIRECT there is the pointer
- * i_indirect which points to a page which holds in the first half
- * doubly indirect blocks, in the second half triple indirect blocks:
- *
- * For an artificial ENTRIES_PER_PAGE = 4 this would lead to the
- * following layout (for SHMEM_NR_DIRECT == 16):
- *
- * i_indirect -> dir --> 16-19
- * 	      |	     +-> 20-23
- * 	      |
- * 	      +-->dir2 --> 24-27
- * 	      |	       +-> 28-31
- * 	      |	       +-> 32-35
- * 	      |	       +-> 36-39
- * 	      |
- * 	      +-->dir3 --> 40-43
- * 	       	       +-> 44-47
- * 	      	       +-> 48-51
- * 	      	       +-> 52-55
+/*
+ * Replace item expected in radix tree by a new item, while holding tree lock.
  */
 static swp_entry_t *shmem_swp_entry(struct shmem_inode_info *info, unsigned long index, struct page **page)
 {
@@ -400,13 +344,8 @@ static void shmem_swp_set(struct shmem_inode_info *info, swp_entry_t *entry, uns
 	}
 }
 
-/**
- * shmem_swp_alloc - get the position of the swap entry for the page.
- * @info:	info structure for the inode
- * @index:	index of the page to find
- * @sgp:	check and recheck i_size? skip allocation?
- *
- * If the entry does not exist, allocate it.
+/*
+ * Like find_get_pages, but collecting swap entries as well as pages.
  */
 static swp_entry_t *shmem_swp_alloc(struct shmem_inode_info *info, unsigned long index, enum sgp_type sgp)
 {
@@ -422,11 +361,7 @@ static swp_entry_t *shmem_swp_alloc(struct shmem_inode_info *info, unsigned long
 	while (!(entry = shmem_swp_entry(info, index, &page))) {
 		if (sgp == SGP_READ)
 			return shmem_swp_map(ZERO_PAGE(0));
-		/*
-		 * Test used_blocks against 1 less max_blocks, since we have 1 data
-		 * page (and perhaps indirect index pages) yet to allocate:
-		 * a waste to allocate index if we cannot allocate data.
-		 */
+
 		if (sbinfo->max_blocks) {
 			if (percpu_counter_compare(&sbinfo->used_blocks,
 						sbinfo->max_blocks - 1) >= 0)
@@ -463,11 +398,8 @@ static swp_entry_t *shmem_swp_alloc(struct shmem_inode_info *info, unsigned long
 	return entry;
 }
 
-/**
- * shmem_free_swp - free some swap entries in a directory
- * @dir:        pointer to the directory
- * @edir:       pointer after last entry of the directory
- * @punch_lock: pointer to spinlock when needed for the holepunch case
+/*
+ * Remove swap entry from radix tree, free the swap and its page cache.
  */
 static int shmem_free_swp(swp_entry_t *dir, swp_entry_t *edir,
 						spinlock_t *punch_lock)
@@ -495,6 +427,9 @@ static int shmem_free_swp(swp_entry_t *dir, swp_entry_t *edir,
 	return freed;
 }
 
+/*
+ * Pagevec may contain swap entries, so shuffle up pages before releasing.
+ */
 static int shmem_map_and_free_swp(struct page *subdir, int offset,
 		int limit, struct page ***dir, spinlock_t *punch_lock)
 {
@@ -522,6 +457,9 @@ static int shmem_map_and_free_swp(struct page *subdir, int offset,
 	return freed;
 }
 
+/*
+ * Remove range of pages and swap entries from radix tree, and free them.
+ */
 static void shmem_free_pages(struct list_head *next)
 {
 	struct page *page;
@@ -606,25 +544,8 @@ void shmem_truncate_range(struct inode *inode, loff_t start, loff_t end)
 		nr_swaps_freed = shmem_free_swp(ptr+idx, ptr+size, needs_lock);
 	}
 
-	/*
-	 * If there are no indirect blocks or we are punching a hole
-	 * below indirect blocks, nothing to be done.
-	 */
 	if (!topdir || limit <= SHMEM_NR_DIRECT)
 		goto done2;
-
-	/*
-	 * The truncation case has already dropped info->lock, and we're safe
-	 * because i_size and next_index have already been lowered, preventing
-	 * access beyond.  But in the punch_hole case, we still need to take
-	 * the lock when updating the swap directory, because there might be
-	 * racing accesses by shmem_getpage(SGP_CACHE), shmem_unuse_inode or
-	 * shmem_writepage.  However, whenever we find we can remove a whole
-	 * directory page (not at the misaligned start or end of the range),
-	 * we first NULLify its pointer in the level above, and then have no
-	 * need to take the lock when updating its contents: needs_lock and
-	 * punch_lock (either pointing to info->lock or NULL) manage this.
-	 */
 
 	upper_limit -= SHMEM_NR_DIRECT;
 	limit -= SHMEM_NR_DIRECT;
@@ -853,6 +774,9 @@ static void shmem_evict_inode(struct inode *inode)
 	end_writeback(inode);
 }
 
+/*
+ * If swap found in inode, free it and move page from swapcache to filecache.
+ */
 static inline int shmem_find_swp(swp_entry_t entry, swp_entry_t *dir, swp_entry_t *edir)
 {
 	swp_entry_t *ptr;
@@ -951,8 +875,7 @@ found:
 	 * Move _head_ to start search for next from here.
 	 * But be careful: shmem_evict_inode checks list_empty without taking
 	 * mutex, and there's an instant in list_move_tail when info->swaplist
-	 * would appear empty, if it were the only one on shmem_swaplist.  We
-	 * could avoid doing it if inode NULL; or use this minor optimization.
+	 * would appear empty, if it were the only one on shmem_swaplist.
 	 */
 	if (shmem_swaplist.next != &info->swaplist)
 		list_move_tail(&shmem_swaplist, &info->swaplist);
@@ -967,6 +890,10 @@ found:
 	/* which does mem_cgroup_uncharge_cache_page on error */
 
 	if (error == -EEXIST) {
+		/*
+		 * Truncation and eviction use free_swap_and_cache(), which
+		 * only does trylock page: if we raced, best clean up here.
+		 */
 		struct page *filepage = find_get_page(mapping, idx);
 		error = 1;
 		if (filepage) {
@@ -993,7 +920,7 @@ found:
 }
 
 /*
- * shmem_unuse() search for an eventually swapped out shmem page.
+ * Search through swapped inodes to find and replace swap by page.
  */
 int shmem_unuse(swp_entry_t entry, struct page *page)
 {
@@ -1006,16 +933,11 @@ int shmem_unuse(swp_entry_t entry, struct page *page)
 	 * Charge page using GFP_KERNEL while we can wait, before taking
 	 * the shmem_swaplist_mutex which might hold up shmem_writepage().
 	 * Charged back to the user (not to caller) when swap account is used.
-	 * add_to_page_cache() will be called with GFP_NOWAIT.
 	 */
 	error = mem_cgroup_cache_charge(page, current->mm, GFP_KERNEL);
 	if (error)
 		goto out;
-	/*
-	 * Try to preload while we can wait, to not make a habit of
-	 * draining atomic reserves; but don't latch on to this cpu,
-	 * it's okay if sometimes we get rescheduled after this.
-	 */
+	/* No radix_tree_preload: swap entry keeps a place for page in tree */
 	error = radix_tree_preload(GFP_KERNEL);
 	if (error)
 		goto uncharge;
@@ -1066,11 +988,9 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 	/*
 	 * shmem_backing_dev_info's capabilities prevent regular writeback or
 	 * sync from ever calling shmem_writepage; but a stacking filesystem
-	 * may use the ->writepage of its underlying filesystem, in which case
+	 * might use ->writepage of its underlying filesystem, in which case
 	 * tmpfs should write out to swap only in response to memory pressure,
-	 * and not for the writeback threads or sync.  However, in those cases,
-	 * we do still want to check if there's a redundant swappage to be
-	 * discarded.
+	 * and not for the writeback threads or sync.
 	 */
 	if (wbc->for_reclaim)
 		swap = get_swap_page();
@@ -1079,12 +999,11 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 
 	/*
 	 * Add inode to shmem_unuse()'s list of swapped-out inodes,
-	 * if it's not already there.  Do it now because we cannot take
-	 * mutex while holding spinlock, and must do so before the page
-	 * is moved to swap cache, when its pagelock no longer protects
+	 * if it's not already there.  Do it now before the page is
+	 * moved to swap cache, when its pagelock no longer protects
 	 * the inode from eviction.  But don't unlock the mutex until
-	 * we've taken the spinlock, because shmem_unuse_inode() will
-	 * prune a !swapped inode from the swaplist under both locks.
+	 * we've incremented swapped, because shmem_unuse_inode() will
+	 * prune a !swapped inode from the swaplist under this mutex.
 	 */
 	if (swap.val) {
 		mutex_lock(&shmem_swaplist_mutex);
@@ -1125,10 +1044,6 @@ static int shmem_writepage(struct page *page, struct writeback_control *wbc)
 	shmem_swp_unmap(entry);
 unlock:
 	spin_unlock(&info->lock);
-	/*
-	 * add_to_swap_cache() doesn't return -EEXIST, so we can safely
-	 * clear SWAP_HAS_CACHE flag.
-	 */
 	swapcache_free(swap, NULL);
 redirty:
 	set_page_dirty(page);
@@ -1199,7 +1114,9 @@ static struct page *shmem_alloc_page(gfp_t gfp,
 
 	page = alloc_page_vma(gfp, &pvma, 0);
 
-	/* Drop reference taken by mpol_shared_policy_lookup() */
+	/*
+	 * alloc_page_vma() will drop the shared policy reference
+	 */
 	mpol_cond_put(pvma.vm_policy);
 
 	return page;
@@ -1232,7 +1149,7 @@ static inline struct mempolicy *shmem_get_sbmpol(struct shmem_sb_info *sbinfo)
 #endif
 
 /*
- * shmem_getpage - either get the page from swap or allocate a new one
+ * shmem_getpage_gfp - find page in cache, or get from swap, or allocate
  *
  * If we allocate a new one we do not mark it dirty. That's up to the
  * vm. If we swap it in we mark it dirty since we also free the swap
@@ -1258,14 +1175,6 @@ static int shmem_getpage(struct inode *inode, unsigned long idx,
 	if (type)
 		*type = 0;
 
-	/*
-	 * Normally, filepage is NULL on entry, and either found
-	 * uptodate immediately, or allocated and zeroed, or read
-	 * in under swappage, which is then assigned to filepage.
-	 * But shmem_readpage (required for splice) passes in a locked
-	 * filepage, which may be found not uptodate by other callers
-	 * too, and may need to be copied from the swappage read in.
-	 */
 repeat:
 	if (!filepage)
 		filepage = find_lock_page(mapping, idx);
@@ -1274,8 +1183,9 @@ repeat:
 	gfp = mapping_gfp_mask(mapping);
 	if (!filepage) {
 		/*
-		 * Try to preload while we can wait, to not make a habit of
-		 * draining atomic reserves; but don't latch on to this cpu.
+		 * Once we can get the page lock, it must be uptodate:
+		 * if there were an error in reading back from swap,
+		 * the page would not be inserted into the filecache.
 		 */
 		error = radix_tree_preload(gfp & ~__GFP_HIGHMEM);
 		if (error)
@@ -1295,6 +1205,10 @@ repeat:
 	}
 	error = 0;
 
+	/*
+	 * Fast cache lookup did not find it:
+	 * bring it back from swap or allocate.
+	 */
 	spin_lock(&info->lock);
 	shmem_recalc_inode(inode);
 	entry = shmem_swp_alloc(info, idx, sgp);
@@ -1360,6 +1274,7 @@ repeat:
 			goto failed;
 		}
 
+		/* Someone may have already done it for us */
 		if (filepage) {
 			shmem_swp_set(info, entry, 0);
 			shmem_swp_unmap(entry);
@@ -1505,17 +1420,14 @@ repeat:
 			set_page_dirty(filepage);
 	}
 done:
+	/* Perhaps the file has been truncated since we checked */
 	*pagep = filepage;
 	error = 0;
 	goto out;
 
 nospace:
 	/*
-	 * Perhaps the page was brought in from swap between find_lock_page
-	 * and taking info->lock?  We allow for that at add_to_page_cache_lru,
-	 * but must also avoid reporting a spurious ENOSPC while working on a
-	 * full tmpfs.  (When filepage has been passed in to shmem_getpage, it
-	 * is already in page cache, which prevents this race from occurring.)
+	 * Error recovery.
 	 */
 	if (!filepage) {
 		struct page *page = find_get_page(mapping, idx);
@@ -1552,6 +1464,7 @@ static int shmem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	error = shmem_getpage(inode, vmf->pgoff, &vmf->page, SGP_CACHE, &ret);
 	if (error)
 		return ((error == -ENOMEM) ? VM_FAULT_OOM : VM_FAULT_SIGBUS);
+
 	if (ret & VM_FAULT_MAJOR) {
 		count_vm_event(PGMAJFAULT);
 		mem_cgroup_count_vm_event(vma->vm_mm, PGMAJFAULT);
@@ -2181,7 +2094,6 @@ out:
 	return err;
 }
 
-
 static const struct xattr_handler *shmem_xattr_handlers[] = {
 #ifdef CONFIG_TMPFS_POSIX_ACL
 	&generic_acl_access_handler,
@@ -2504,7 +2416,7 @@ static int shmem_remount_fs(struct super_block *sb, int *flags, char *data)
 	struct shmem_sb_info config = *sbinfo;
 	unsigned long inodes;
 	int error = -EINVAL;
-        
+
         config.mpol = NULL;
 	if (shmem_parse_options(data, &config, true))
 		return error;
@@ -2516,8 +2428,7 @@ static int shmem_remount_fs(struct super_block *sb, int *flags, char *data)
 	if (config.max_inodes < inodes)
 		goto out;
 	/*
-	 * Those tests also disallow limited->unlimited while any are in
-	 * use, so i_blocks will always be zero when max_blocks is zero;
+	 * Those tests disallow limited->unlimited while any are in use;
 	 * but we must separately disallow unlimited->limited, because
 	 * in that case we have no record of how much is already in use.
 	 */
@@ -2531,9 +2442,6 @@ static int shmem_remount_fs(struct super_block *sb, int *flags, char *data)
 	sbinfo->max_inodes  = config.max_inodes;
 	sbinfo->free_inodes = config.max_inodes - inodes;
 
-	/*
-         * Preserve previous mempolicy unless mpol remount option was specified.
-         */
         if (config.mpol) {
                 mpol_put(sbinfo->mpol);
                 sbinfo->mpol = config.mpol; /* transfers initial ref */
@@ -2844,16 +2752,6 @@ out4:
 }
 
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR
-/**
- * mem_cgroup_get_shmem_target - find a page or entry assigned to the shmem file
- * @inode: the inode to be searched
- * @pgoff: the offset to be searched
- * @pagep: the pointer for the found page to be stored
- * @ent: the pointer for the found swap entry to be stored
- *
- * If a page is found, refcount of it is incremented. Callers should handle
- * these refcount.
- */
 void mem_cgroup_get_shmem_target(struct inode *inode, pgoff_t pgoff,
 					struct page **pagep, swp_entry_t *ent)
 {
@@ -2928,16 +2826,6 @@ void shmem_truncate_range(struct inode *inode, loff_t start, loff_t end)
 EXPORT_SYMBOL_GPL(shmem_truncate_range);
 
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR
-/**
- * mem_cgroup_get_shmem_target - find a page or entry assigned to the shmem file
- * @inode: the inode to be searched
- * @pgoff: the offset to be searched
- * @pagep: the pointer for the found page to be stored
- * @ent: the pointer for the found swap entry to be stored
- *
- * If a page is found, refcount of it is incremented. Callers should handle
- * these refcount.
- */
 void mem_cgroup_get_shmem_target(struct inode *inode, pgoff_t pgoff,
 					struct page **pagep, swp_entry_t *ent)
 {
@@ -3052,7 +2940,7 @@ int shmem_zero_setup(struct vm_area_struct *vma)
 	shmem_set_file(vma, file);
 	return 0;
 }
-
+F
 /**
  * shmem_read_mapping_page_gfp - read into page cache, using specified page allocation flags.
  * @mapping:	the page's address_space
@@ -3065,9 +2953,8 @@ int shmem_zero_setup(struct vm_area_struct *vma)
  * suit tmpfs, since it may have pages in swapcache, and needs to find those
  * for itself; although drivers/gpu/drm i915 and ttm rely upon this support.
  *
- * Provide a stub for those callers to start using now, then later
- * flesh it out to call shmem_getpage() with additional gfp mask, when
- * shmem_file_splice_read() is added and shmem_readpage() is removed.
+ * i915_gem_object_get_pages_gtt() mixes __GFP_NORETRY | __GFP_NOWARN in
+ * with the mapping_gfp_mask(), to avoid OOMing the machine unnecessarily.
  */
 struct page *shmem_read_mapping_page_gfp(struct address_space *mapping,
 					 pgoff_t index, gfp_t gfp)
