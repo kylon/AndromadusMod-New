@@ -196,16 +196,8 @@ repeat:
 		 * If we were the last child thread and the leader has
 		 * exited already, and the leader's parent ignores SIGCHLD,
 		 * then we are the one who should release the leader.
-		 *
-		 * do_notify_parent() will have marked it self-reaping in
-		 * that case.
 		 */
 		zap_leader = task_detached(leader);
-
-		/*
-		 * This maintains the invariant that release_task()
-		 * only runs on a task in EXIT_DEAD, just for sanity.
-		 */
 		if (zap_leader)
 			leader->exit_state = EXIT_DEAD;
 	}
@@ -655,6 +647,7 @@ static void exit_mm(struct task_struct * tsk)
 	mm_release(tsk, mm);
 	if (!mm)
 		return;
+	sync_mm_rss(mm);
 	/*
 	 * Serialize with any possible pending coredump.
 	 * We must hold mmap_sem around checking core_state
@@ -715,8 +708,6 @@ static struct task_struct *find_new_reaper(struct task_struct *father)
 {
 	struct pid_namespace *pid_ns = task_active_pid_ns(father);
 	struct task_struct *thread;
-
-	BUG_ON(!pid_ns);
 
 	thread = father;
 	while_each_thread(father, thread) {
@@ -839,20 +830,6 @@ static void exit_notify(struct task_struct *tsk, int group_dead)
 	if (group_dead)
 		kill_orphaned_pgrp(tsk->group_leader, NULL);
 
-	/* Let father know we died
-	 *
-	 * Thread signals are configurable, but you aren't going to use
-	 * that to send signals to arbitrary processes.
-	 * That stops right now.
-	 *
-	 * If the parent exec id doesn't match the exec id we saved
-	 * when we started then we know the parent has changed security
-	 * domain.
-	 *
-	 * If our self_exec id doesn't match our parent_exec_id then
-	 * we have changed execution domain as these two values started
-	 * the same after a fork.
-	 */
 	if (tsk->exit_signal != SIGCHLD && !task_detached(tsk) &&
 	    (tsk->parent_exec_id != tsk->real_parent->self_exec_id ||
 	     tsk->self_exec_id != tsk->parent_exec_id))
@@ -908,7 +885,6 @@ NORET_TYPE void do_exit(long code)
 
 	profile_task_exit(tsk);
 
-	WARN_ON(atomic_read(&tsk->fs_excl));
 	WARN_ON(blk_needs_flush_plug(tsk));
 
 	if (unlikely(in_interrupt()))
@@ -968,7 +944,7 @@ NORET_TYPE void do_exit(long code)
 	acct_update_integrals(tsk);
 	/* sync mm's RSS info before statistics gathering */
 	if (tsk->mm)
-		sync_mm_rss(tsk, tsk->mm);
+		sync_mm_rss(tsk->mm);
 	group_dead = atomic_dec_and_test(&tsk->signal->live);
 	if (group_dead) {
 		hrtimer_cancel(&tsk->signal->real_timer);
@@ -979,8 +955,7 @@ NORET_TYPE void do_exit(long code)
 	acct_collect(code, group_dead);
 	if (group_dead)
 		tty_audit_exit();
-	if (unlikely(tsk->audit_context))
-		audit_free(tsk);
+	audit_free(tsk);
 
 	tsk->exit_code = code;
 	taskstats_exit(tsk, group_dead);

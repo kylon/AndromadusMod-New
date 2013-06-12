@@ -154,7 +154,6 @@ static int __init init_zero_pfn(void)
 core_initcall(init_zero_pfn);
 
 
-
 #if defined(SPLIT_RSS_COUNTING)
 
 static void __sync_task_rss_stat(struct task_struct *task, struct mm_struct *mm)
@@ -698,7 +697,7 @@ static inline void add_mm_rss_vec(struct mm_struct *mm, int *rss)
 	int i;
 
 	if (current->mm == mm)
-		sync_mm_rss(current, mm);
+		sync_mm_rss(mm);
 	for (i = 0; i < NR_MM_COUNTERS; i++)
 		if (rss[i])
 			add_mm_counter(mm, i, rss[i]);
@@ -1352,8 +1351,6 @@ static unsigned long unmap_page_range(struct mmu_gather *tlb,
  * @end_addr: virtual address at which to end unmapping
  * @nr_accounted: Place number of unmapped pages in vm-accountable vma's here
  * @details: details of nonlinear truncation or shared cache invalidation
- *
- * Returns the end address of the unmapping (restart addr if interrupted).
  *
  * Unmap all pages in the vma list.
  *
