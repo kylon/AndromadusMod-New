@@ -20,7 +20,6 @@
 #include <linux/printk.h>
 #include <linux/dynamic_debug.h>
 #include <asm/byteorder.h>
-#include <asm/bug.h>
 
 #define USHRT_MAX	((u16)(~0U))
 #define SHRT_MAX	((s16)(USHRT_MAX>>1))
@@ -292,6 +291,8 @@ static inline int __must_check kstrtos32_from_user(const char __user *s, size_t 
 {
 	return kstrtoint_from_user(s, count, base, res);
 }
+
+/* Obsolete, do not use.  Use kstrto<foo> instead */
 
 extern unsigned long simple_strtoul(const char *,char **,unsigned int);
 extern long simple_strtol(const char *,char **,unsigned int);
@@ -766,7 +767,6 @@ extern int __build_bug_on_failed;
 # define REBUILD_DUE_TO_FTRACE_MCOUNT_RECORD
 #endif
 
-/* To identify board information in panic logs, set this */
 extern char *mach_panic_string;
 
 #endif

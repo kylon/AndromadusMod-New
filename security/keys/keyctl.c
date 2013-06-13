@@ -1065,7 +1065,7 @@ long keyctl_instantiate_key_iov(key_serial_t id,
 		goto no_payload;
 
 	ret = rw_copy_check_uvector(WRITE, _payload_iov, ioc,
-				    ARRAY_SIZE(iovstack), iovstack, &iov);
+				    ARRAY_SIZE(iovstack), iovstack, &iov, 1);
 	if (ret < 0)
 		goto err;
 	if (ret == 0)
@@ -1274,7 +1274,6 @@ long keyctl_set_timeout(key_serial_t id, unsigned timeout)
 okay:
 	key = key_ref_to_ptr(key_ref);
 
-	/* make the changes with the locks held to prevent races */
 	down_write(&key->sem);
 
 	expiry = 0;
