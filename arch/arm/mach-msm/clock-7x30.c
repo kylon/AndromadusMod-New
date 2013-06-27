@@ -1277,7 +1277,11 @@ static struct rcg_clk grp_2d_clk = {
 	.c = {
 		.dbg_name = "grp_2d_clk",
 		.ops = &clk_ops_rcg_7x30,
-		VDD_DIG_FMAX_MAP2(NOMINAL, 192000000, HIGH, 245760000),
+#ifdef CONFIG_GPU_OC
+		VDD_DIG_FMAX_MAP2(NOMINAL, 245760000, HIGH, 299520000),
+#else
+                VDD_DIG_FMAX_MAP2(NOMINAL, 192000000, HIGH, 245760000),
+#endif
 		CLK_INIT(grp_2d_clk.c),
 		.depends = &axi_grp_2d_clk.c,
 	},
@@ -1298,7 +1302,7 @@ static struct rcg_clk grp_3d_src_clk = {
 		.dbg_name = "grp_3d_src_clk",
 		.ops = &clk_ops_rcg_7x30,
 #ifdef CONFIG_GPU_OC
-		VDD_DIG_FMAX_MAP2(NOMINAL, 192000000, HIGH, 266667000),
+		VDD_DIG_FMAX_MAP2(NOMINAL, 192000000, HIGH, 353280000),
 #else
                 VDD_DIG_FMAX_MAP2(NOMINAL, 192000000, HIGH, 245760000),
 #endif

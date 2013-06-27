@@ -1374,7 +1374,7 @@ static struct kgsl_device_platform_data kgsl_3d0_pdata = {
 	.pwrlevel = {
 		{
 #ifdef CONFIG_GPU_OC
-			.gpu_freq = 266667000,
+			.gpu_freq = 353280000,
 #else
                         .gpu_freq = 245760000,
 #endif
@@ -1382,14 +1382,18 @@ static struct kgsl_device_platform_data kgsl_3d0_pdata = {
 		},
 		{
 #ifdef CONFIG_GPU_OC
-			.gpu_freq = 245760000,
+			.gpu_freq = 299520000, 
 #else
                        	.gpu_freq = 192000000,
 #endif
 			.bus_freq = 152000000,
 		},
 		{
-			.gpu_freq = 192000000,
+#ifdef CONFIG_GPU_OC
+			.gpu_freq = 245760000,
+#else
+                        .gpu_freq = 192000000,
+#endif
 			.bus_freq = 0,
 		},
 	},
