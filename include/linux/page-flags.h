@@ -107,7 +107,7 @@ enum pageflags {
 #endif
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 	PG_compound_lock,
-#endif
+#endif 
 	__NR_PAGEFLAGS,
 
 	/* Filesystems */

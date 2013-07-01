@@ -265,10 +265,10 @@ struct platform_device vision_reset_keys_device = {
 	.dev.platform_data = &vision_reset_keys_pdata,
 };
 
-char *SKU_WWE = "(HTC__001),(HTC__016),(HTC__032),(HTC__038),(HTC__E11),"\
-		"(VODAP001),(VODAPE17),(BM___001),(ORANGB10),(ORANG006)";
-char *SKU_WWE_BOPOMO = "(HTC__621)";
-char *SKU_HK = "(HTC__622)";
+char *SKU_WWE = "(HTC__001),(HTC__016),(HTC__032),(HTC__038),(HTC__621),"\
+                "(HTC__E11),(VODAP001),(VODAPE17),(BM___001),(ORANGB10),"\
+                "(ORANG006)"; 
+char *SKU_HK  = "(HTC__622)";
 char *SKU_SEA = "(HTC__044)";
 char *SKU_FRA = "(HTC__203),(HTC__E41),(ORANG202)";
 char *SKU_ITA = "(HTC__405)";
@@ -299,11 +299,6 @@ int __init vision_init_keypad(void)
 	if (cid_len) {
 		if (strstr(SKU_TMUS, get_cid) != NULL) {
 			pr_info("%s: SKU is TMUS\n", __func__);
-		} else if (strstr(SKU_WWE_BOPOMO, get_cid) != NULL) {
-
-			vision_pmic_keymap[KEYMAP_INDEX(6, 3)] = KEY_TAB;
-			vision_keypad_data.name = "vision-keypad-wwe-bopomo";
-
 		} else if (strstr(SKU_FRA, get_cid) != NULL) {
 
 			vision_pmic_keymap[KEYMAP_INDEX(0, 2)] = KEY_APOSTROPHE;
