@@ -412,4 +412,6 @@ header-y += msm_vidc_enc.h
 header-y += android_pmem.h
 header-y += ashmem.h
 header-y += genlock.h
-header-y += ion.h 
+header-y += ion.h
+header-y += spi_aic3254.h
+header-y += tpa2051d3.h  
