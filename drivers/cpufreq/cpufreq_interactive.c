@@ -29,6 +29,7 @@
 #include <linux/workqueue.h>
 #include <linux/kthread.h>
 #include <linux/slab.h>
+#include <linux/kernel_stat.h>
 #include <asm/cputime.h>
 
 #define CREATE_TRACE_POINTS
@@ -113,6 +114,8 @@ static u64 boostpulse_endtime;
 #define DEFAULT_TIMER_SLACK (4 * DEFAULT_TIMER_RATE)
 static int timer_slack_val = DEFAULT_TIMER_SLACK;
 
+static bool io_is_busy;
+
 static int cpufreq_governor_interactive(struct cpufreq_policy *policy,
 		unsigned int event);
 
@@ -126,6 +129,42 @@ struct cpufreq_governor cpufreq_gov_interactive = {
 	.owner = THIS_MODULE,
 };
 
+static inline cputime64_t get_cpu_idle_time_jiffy(unsigned int cpu,
+						  cputime64_t *wall)
+{
+	u64 idle_time;
+	u64 cur_wall_time;
+	u64 busy_time;
+
+	cur_wall_time = jiffies64_to_cputime64(get_jiffies_64());
+
+	busy_time  = kstat_cpu(cpu).cpustat.user;
+	busy_time += kstat_cpu(cpu).cpustat.system;
+	busy_time += kstat_cpu(cpu).cpustat.irq;
+	busy_time += kstat_cpu(cpu).cpustat.softirq;
+	busy_time += kstat_cpu(cpu).cpustat.steal;
+	busy_time += kstat_cpu(cpu).cpustat.nice;
+
+	idle_time = cur_wall_time - busy_time;
+	if (wall)
+		*wall = jiffies_to_usecs(cur_wall_time);
+
+	return jiffies_to_usecs(idle_time);
+}
+
+static inline cputime64_t get_cpu_idle_time(unsigned int cpu,
+					    cputime64_t *wall)
+{
+	u64 idle_time = get_cpu_idle_time_us(cpu, wall);
+
+	if (idle_time == -1ULL)
+		idle_time = get_cpu_idle_time_jiffy(cpu, wall);
+	else if (!io_is_busy)
+		idle_time += get_cpu_iowait_time_us(cpu, wall);
+
+	return idle_time;
+}
+
 static void cpufreq_interactive_timer_resched(
 	struct cpufreq_interactive_cpuinfo *pcpu)
 {
@@ -134,7 +173,7 @@ static void cpufreq_interactive_timer_resched(
 
 	spin_lock_irqsave(&pcpu->load_lock, flags);
 	pcpu->time_in_idle =
-		get_cpu_idle_time_us(smp_processor_id(),
+		get_cpu_idle_time(smp_processor_id(),
 				     &pcpu->time_in_idle_timestamp);
 	pcpu->cputime_speedadj = 0;
 	pcpu->cputime_speedadj_timestamp = pcpu->time_in_idle_timestamp;
@@ -209,9 +248,9 @@ static unsigned int choose_freq(
 		 */
 
 		if (cpufreq_frequency_table_target(
-                      pcpu->policy, pcpu->freq_table, loadadjfreq / tl,
-                      CPUFREQ_RELATION_L, &index))
-                  break; 
+			    pcpu->policy, pcpu->freq_table, loadadjfreq / tl,
+			    CPUFREQ_RELATION_L, &index))
+			break;
 		freq = pcpu->freq_table[index].frequency;
 
 		if (freq > prevfreq) {
@@ -224,10 +263,10 @@ static unsigned int choose_freq(
 				 * than freqmax.
 				 */
 				if (cpufreq_frequency_table_target(
-                                      pcpu->policy, pcpu->freq_table,
-                                      freqmax - 1, CPUFREQ_RELATION_H,
-                                      &index))
-                                  break; 
+					    pcpu->policy, pcpu->freq_table,
+					    freqmax - 1, CPUFREQ_RELATION_H,
+					    &index))
+					break;
 				freq = pcpu->freq_table[index].frequency;
 
 				if (freq == freqmin) {
@@ -251,10 +290,10 @@ static unsigned int choose_freq(
 				 * than freqmin.
 				 */
 				if (cpufreq_frequency_table_target(
-                                      pcpu->policy, pcpu->freq_table,
-                                      freqmin + 1, CPUFREQ_RELATION_L,
-                                      &index))
-                                  break; 
+					    pcpu->policy, pcpu->freq_table,
+					    freqmin + 1, CPUFREQ_RELATION_L,
+					    &index))
+					break;
 				freq = pcpu->freq_table[index].frequency;
 
 				/*
@@ -282,14 +321,14 @@ static u64 update_load(int cpu)
 	unsigned int delta_time;
 	u64 active_time;
 
-	now_idle = get_cpu_idle_time_us(cpu, &now);
+	now_idle = get_cpu_idle_time(cpu, &now);
 	delta_idle = (unsigned int)(now_idle - pcpu->time_in_idle);
 	delta_time = (unsigned int)(now - pcpu->time_in_idle_timestamp);
-	
+
 	if (delta_time <= delta_idle)
-          active_time = 0;
-        else
-          active_time = delta_time - delta_idle; 
+		active_time = 0;
+	else
+		active_time = delta_time - delta_idle;
 
 	pcpu->cputime_speedadj += active_time * pcpu->policy->cur;
 
@@ -358,7 +397,7 @@ static void cpufreq_interactive_timer(unsigned long data)
 
 	if (cpufreq_frequency_table_target(pcpu->policy, pcpu->freq_table,
 					   new_freq, CPUFREQ_RELATION_L,
-					   &index)) 
+					   &index))
 		goto rearm;
 
 	new_freq = pcpu->freq_table[index].frequency;
@@ -595,18 +634,18 @@ static int cpufreq_interactive_notifier(
 			struct cpufreq_interactive_cpuinfo *pjcpu =
 				&per_cpu(cpuinfo, cpu);
 			if (cpu != freq->cpu) {
-                          if (!down_read_trylock(&pjcpu->enable_sem))
-                            continue;
-                          if (!pjcpu->governor_enabled) {
-                            up_read(&pjcpu->enable_sem);
-                            continue;
-                            }
-                        } 
+				if (!down_read_trylock(&pjcpu->enable_sem))
+					continue;
+				if (!pjcpu->governor_enabled) {
+					up_read(&pjcpu->enable_sem);
+					continue;
+				}
+			}
 			spin_lock_irqsave(&pjcpu->load_lock, flags);
 			update_load(cpu);
 			spin_unlock_irqrestore(&pjcpu->load_lock, flags);
 			if (cpu != freq->cpu)
-                          up_read(&pjcpu->enable_sem); 
+				up_read(&pjcpu->enable_sem);
 		}
 
 		up_read(&pcpu->enable_sem);
@@ -935,6 +974,28 @@ static ssize_t store_boostpulse_duration(
 
 define_one_global_rw(boostpulse_duration);
 
+static ssize_t show_io_is_busy(struct kobject *kobj,
+			struct attribute *attr, char *buf)
+{
+	return sprintf(buf, "%u\n", io_is_busy);
+}
+
+static ssize_t store_io_is_busy(struct kobject *kobj,
+			struct attribute *attr, const char *buf, size_t count)
+{
+	int ret;
+	unsigned long val;
+
+	ret = kstrtoul(buf, 0, &val);
+	if (ret < 0)
+		return ret;
+	io_is_busy = val;
+	return count;
+}
+
+static struct global_attr io_is_busy_attr = __ATTR(io_is_busy, 0644,
+		show_io_is_busy, store_io_is_busy);
+
 static struct attribute *interactive_attributes[] = {
 	&target_loads_attr.attr,
 	&above_hispeed_delay_attr.attr,
@@ -946,6 +1007,7 @@ static struct attribute *interactive_attributes[] = {
 	&boost.attr,
 	&boostpulse.attr,
 	&boostpulse_duration.attr,
+	&io_is_busy_attr.attr,
 	NULL,
 };
 
@@ -1138,3 +1200,4 @@ MODULE_AUTHOR("Mike Chan <mike@android.com>");
 MODULE_DESCRIPTION("'cpufreq_interactive' - A cpufreq governor for "
 	"Latency sensitive workloads");
 MODULE_LICENSE("GPL");
+
