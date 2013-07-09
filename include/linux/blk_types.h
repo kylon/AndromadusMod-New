@@ -133,7 +133,7 @@ enum rq_flag_bits {
 				 * throttling rules. Don't do it again. */
 
 	/* request only flags */
-	__REQ_SORTED,		/* elevator knows about this request */
+	__REQ_SORTED = __REQ_RAHEAD, /* elevator knows about this request */ 
 	__REQ_SOFTBARRIER,	/* may not be passed by ioscheduler */
 	__REQ_FUA,		/* forced unit access */
 	__REQ_NOMERGE,		/* don't touch this for merging */
@@ -151,10 +151,8 @@ enum rq_flag_bits {
 	__REQ_IO_STAT,		/* account I/O stat */
 	__REQ_MIXED_MERGE,	/* merge of different types, fail separately */
 	__REQ_SECURE,		/* secure discard (used with __REQ_DISCARD) */
-/* Modified by Memory, Studio Software for Zimmer */
-#if defined(CONFIG_ZIMMER)
-	__REQ_SWAPIN_DMPG,	/* request to swap-in page from swap area or demand paging */
-#endif
+	__REQ_SANITIZE,         /* sanitize */ 
+        __REQ_URGENT,           /* urgent request */ 
 	__REQ_NR_BITS,		/* stops here */
 };
 
@@ -165,13 +163,15 @@ enum rq_flag_bits {
 #define REQ_SYNC		(1 << __REQ_SYNC)
 #define REQ_META		(1 << __REQ_META)
 #define REQ_DISCARD		(1 << __REQ_DISCARD)
+#define REQ_SANITIZE            (1 << __REQ_SANITIZE)
+#define REQ_URGENT              (1 << __REQ_URGENT) 
 #define REQ_NOIDLE		(1 << __REQ_NOIDLE)
 
 #define REQ_FAILFAST_MASK \
 	(REQ_FAILFAST_DEV | REQ_FAILFAST_TRANSPORT | REQ_FAILFAST_DRIVER)
 #define REQ_COMMON_MASK \
 	(REQ_WRITE | REQ_FAILFAST_MASK | REQ_SYNC | REQ_META | REQ_DISCARD | \
-	 REQ_NOIDLE | REQ_FLUSH | REQ_FUA | REQ_SECURE)
+	REQ_NOIDLE | REQ_FLUSH | REQ_FUA | REQ_SECURE | REQ_SANITIZE) 
 #define REQ_CLONE_MASK		REQ_COMMON_MASK
 
 #define REQ_RAHEAD		(1 << __REQ_RAHEAD)
@@ -195,9 +195,5 @@ enum rq_flag_bits {
 #define REQ_IO_STAT		(1 << __REQ_IO_STAT)
 #define REQ_MIXED_MERGE		(1 << __REQ_MIXED_MERGE)
 #define REQ_SECURE		(1 << __REQ_SECURE)
-/* Modified by Memory, Studio Software for Zimmer */
-#if defined(CONFIG_ZIMMER)
-	#define REQ_SWAPIN_DMPG	(1 << __REQ_SWAPIN_DMPG)
-#endif
 
 #endif /* __LINUX_BLK_TYPES_H */

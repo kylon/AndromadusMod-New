@@ -28,6 +28,7 @@
 #include <linux/task_io_accounting_ops.h>
 #include <linux/fault-inject.h>
 #include <linux/list_sort.h>
+#include <linux/delay.h> 
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/block.h>
@@ -309,13 +310,13 @@ void __blk_run_queue(struct request_queue *q)
 		return;
 
 	if (!q->notified_urgent &&
-		q->elevator->ops->elevator_is_urgent_fn &&
-		q->urgent_request_fn &&
-		q->elevator->ops->elevator_is_urgent_fn(q)) {
-		q->notified_urgent = true;
-		q->urgent_request_fn(q);
-	} else
-		q->request_fn(q);
+          q->elevator->type->ops.elevator_is_urgent_fn && 
+          q->urgent_request_fn &&
+          q->elevator->type->ops.elevator_is_urgent_fn(q)) { 
+          q->notified_urgent = true;      
+          q->urgent_request_fn(q);
+        } else
+          q->request_fn(q); 
 }
 EXPORT_SYMBOL(__blk_run_queue);
 
@@ -359,6 +360,33 @@ void blk_put_queue(struct request_queue *q)
 	kobject_put(&q->kobj);
 }
 EXPORT_SYMBOL(blk_put_queue);
+
+/**
+ * blk_drain_queue - drain requests from request_queue
+ * @q: queue to drain
+ *
+ * Drain ELV_PRIV requests from @q.  The caller is responsible for ensuring
+ * that no new requests which need to be drained are queued.
+ */
+void blk_drain_queue(struct request_queue *q)
+{
+   while (true) {
+     int nr_rqs;
+ 
+     spin_lock_irq(q->queue_lock);
+ 
+     elv_drain_elevator(q);
+ 
+     __blk_run_queue(q);
+     nr_rqs = q->rq.elvpriv;
+ 
+     spin_unlock_irq(q->queue_lock);
+ 
+     if (!nr_rqs)
+       break;
+     msleep(10);
+   }
+} 
 
 /*
  * Note: If a driver supplied the queue lock, it is disconnected
@@ -718,15 +746,9 @@ static struct request *get_request(struct request_queue *q, int rw_flags,
 			if (!blk_queue_full(q, is_sync)) {
 				ioc_set_batching(q, ioc);
 				blk_set_queue_full(q, is_sync);
-			}
-
-			else {
-/* Modified by Memory, Studio Software for Zimmer */
-#if defined(CONFIG_ZIMMER)
-                if (may_queue != ELV_MQUEUE_MUST && !ioc_batching(q, ioc) && (!(bio->bi_rw & REQ_SWAPIN_DMPG))) {
-#else
-                if (may_queue != ELV_MQUEUE_MUST && !ioc_batching(q, ioc)) {
-#endif
+			} else {
+                          if (may_queue != ELV_MQUEUE_MUST
+                              && !ioc_batching(q, ioc)) { 
 					/*
 					 * The queue is full and the allocating
 					 * process is not a "batcher", and not
@@ -744,12 +766,7 @@ static struct request *get_request(struct request_queue *q, int rw_flags,
 	 * limit of requests, otherwise we could have thousands of requests
 	 * allocated with any setting of ->nr_requests
 	 */
-	/* Modified by Memory, Studio Software for Zimmer */
-#if defined(CONFIG_ZIMMER)
-    if ((rl->count[is_sync] >= (3 * q->nr_requests / 2)) && (!(bio->bi_rw & REQ_SWAPIN_DMPG)))
-#else
-    if ((rl->count[is_sync] >= (3 * q->nr_requests / 2)))
-#endif
+         if (rl->count[is_sync] >= (3 * q->nr_requests / 2)) 
 		goto out;
 
 	rl->count[is_sync]++;
@@ -947,6 +964,17 @@ void blk_requeue_request(struct request_queue *q, struct request *rq)
 		blk_queue_end_tag(q, rq);
 
 	BUG_ON(blk_queued_rq(rq));
+	
+	if (rq->cmd_flags & REQ_URGENT) {
+          /*
+           * It's not compliant with the design to re-insert
+           * urgent requests. We want to be able to track this
+           * down.
+           */
+           pr_debug("%s(): requeueing an URGENT request", __func__);
+           WARN_ON(!q->dispatched_urgent);
+           q->dispatched_urgent = false;
+        } 
 
 	elv_requeue_request(q, rq);
 }
@@ -954,8 +982,8 @@ EXPORT_SYMBOL(blk_requeue_request);
 
 /**
  * blk_reinsert_request() - Insert a request back to the scheduler
- * @q:		request queue
- * @rq:		request to be inserted
+ * @q:    request queue
+ * @rq:    request to be inserted
  *
  * This function inserts the request back to the scheduler as if
  * it was never dispatched.
@@ -964,37 +992,47 @@ EXPORT_SYMBOL(blk_requeue_request);
  */
 int blk_reinsert_request(struct request_queue *q, struct request *rq)
 {
-	if (unlikely(!rq) || unlikely(!q))
-		return -EIO;
-
-	blk_delete_timer(rq);
-	blk_clear_rq_complete(rq);
-	trace_block_rq_requeue(q, rq);
-
-	if (blk_rq_tagged(rq))
-		blk_queue_end_tag(q, rq);
-
-	BUG_ON(blk_queued_rq(rq));
-
-	return elv_reinsert_request(q, rq);
+   if (unlikely(!rq) || unlikely(!q))
+     return -EIO;
+ 
+   blk_delete_timer(rq);
+   blk_clear_rq_complete(rq);
+   trace_block_rq_requeue(q, rq);
+ 
+   if (blk_rq_tagged(rq))
+     blk_queue_end_tag(q, rq);
+ 
+   BUG_ON(blk_queued_rq(rq));
+   if (rq->cmd_flags & REQ_URGENT) {
+     /*
+      * It's not compliant with the design to re-insert
+      * urgent requests. We want to be able to track this
+      * down.
+      */
+     pr_debug("%s(): reinserting an URGENT request", __func__);
+     WARN_ON(!q->dispatched_urgent);
+     q->dispatched_urgent = false;
+   }
+ 
+   return elv_reinsert_request(q, rq);
 }
 EXPORT_SYMBOL(blk_reinsert_request);
 
 /**
  * blk_reinsert_req_sup() - check whether the scheduler supports
  *          reinsertion of requests
- * @q:		request queue
+ * @q:    request queue
  *
  * Returns true if the current scheduler supports reinserting
  * request. False otherwise
  */
 bool blk_reinsert_req_sup(struct request_queue *q)
 {
-	if (unlikely(!q))
-		return false;
-	return q->elevator->ops->elevator_reinsert_req_fn ? true : false;
+   if (unlikely(!q))
+     return false;
+   return q->elevator->type->ops.elevator_reinsert_req_fn ? true : false; 
 }
-EXPORT_SYMBOL(blk_reinsert_req_sup);
+EXPORT_SYMBOL(blk_reinsert_req_sup); 
 
 static void add_acct_request(struct request_queue *q, struct request *rq,
 			     int where)
@@ -1265,12 +1303,6 @@ void init_request_from_bio(struct request *req, struct bio *bio)
 	if (bio->bi_rw & REQ_RAHEAD)
 		req->cmd_flags |= REQ_FAILFAST_MASK;
 
-/* Modified by Memory, Studio Software for Zimmer */
-#if defined(CONFIG_ZIMMER)
-	if (bio->bi_rw & REQ_SWAPIN_DMPG)
-		req->cmd_flags |= (REQ_SWAPIN_DMPG | REQ_NOMERGE);
-#endif
-
 	req->errors = 0;
 	req->__sector = bio->bi_sector;
 	req->ioprio = bio_prio(bio);
@@ -1291,12 +1323,7 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 	 */
 	blk_queue_bounce(q, &bio);
 
-/* Modified by Memory, Studio Software for Zimmer */
-#if defined(CONFIG_ZIMMER)
-	if (bio->bi_rw & (REQ_FLUSH | REQ_FUA) || bio->bi_rw & REQ_SWAPIN_DMPG) {
-#else
 	if (bio->bi_rw & (REQ_FLUSH | REQ_FUA)) {
-#endif
 		spin_lock_irq(q->queue_lock);
 		where = ELEVATOR_INSERT_FLUSH;
 		goto get_rq;
@@ -1513,12 +1540,9 @@ static inline void __generic_make_request(struct bio *bio)
 {
 	struct request_queue *q;
 	sector_t old_sector;
-	int ret, nr_sectors = 0;
+	int ret, nr_sectors = bio_sectors(bio); 
 	dev_t old_dev;
 	int err = -EIO;
-
-	if (bio)
-		nr_sectors = bio_sectors(bio);
 
 	might_sleep();
 
@@ -1548,7 +1572,7 @@ static inline void __generic_make_request(struct bio *bio)
 			goto end_io;
 		}
 
-		if (unlikely(!(bio->bi_rw & REQ_DISCARD) &&
+		if (unlikely(!(bio->bi_rw & (REQ_DISCARD | REQ_SANITIZE)) && 
 			     nr_sectors > queue_max_hw_sectors(q))) {
 			printk(KERN_ERR "bio too big device %s (%u > %u)\n",
 			       bdevname(bio->bi_bdev, b),
@@ -1601,6 +1625,14 @@ static inline void __generic_make_request(struct bio *bio)
 			err = -EOPNOTSUPP;
 			goto end_io;
 		}
+		
+		if ((bio->bi_rw & REQ_SANITIZE) &&
+                    (!blk_queue_sanitize(q))) {
+                  pr_info("%s - got a SANITIZE request but the queue "
+                         "doesn't support sanitize requests", __func__);
+                  err = -EOPNOTSUPP;
+                  goto end_io;
+               } 
 
 		if (blk_throtl_bio(q, &bio))
 			goto end_io;
@@ -1692,7 +1724,8 @@ void submit_bio(int rw, struct bio *bio)
 	 * If it's a regular read/write or a barrier with data attached,
 	 * go through the normal accounting stuff before submission.
 	 */
-	if (bio_has_data(bio) && !(rw & REQ_DISCARD)) {
+	if (bio_has_data(bio) &&
+            (!(rw & (REQ_DISCARD | REQ_SANITIZE)))) { 
 		if (rw & WRITE) {
 			count_vm_events(PGPGOUT, count);
 		} else {
@@ -1738,7 +1771,7 @@ EXPORT_SYMBOL(submit_bio);
  */
 int blk_rq_check_limits(struct request_queue *q, struct request *rq)
 {
-	if (rq->cmd_flags & REQ_DISCARD)
+	if (rq->cmd_flags & (REQ_DISCARD | REQ_SANITIZE)) 
 		return 0;
 
 	if (blk_rq_sectors(rq) > queue_max_sectors(q) ||
@@ -1917,6 +1950,10 @@ struct request *blk_peek_request(struct request_queue *q)
 			 * not be passed by new incoming requests
 			 */
 			rq->cmd_flags |= REQ_STARTED;
+			if (rq->cmd_flags & REQ_URGENT) {
+                          WARN_ON(q->dispatched_urgent);
+                          q->dispatched_urgent = true;
+                        } 
 			trace_block_rq_issue(q, rq);
 		}
 
