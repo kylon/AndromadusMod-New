@@ -266,9 +266,6 @@ void tlb_flush_mmu(struct mmu_gather *tlb)
 	tlb_table_flush(tlb);
 #endif
 
-        if (tlb_fast_mode(tlb))
-                return;
-
 	for (batch = &tlb->local; batch; batch = batch->next) {
 		free_pages_and_swap_cache(batch->pages, batch->nr);
 		batch->nr = 0;
@@ -305,11 +302,6 @@ void tlb_finish_mmu(struct mmu_gather *tlb, unsigned long start, unsigned long e
 int __tlb_remove_page(struct mmu_gather *tlb, struct page *page)
 {
 	struct mmu_gather_batch *batch;
-
-        if (tlb_fast_mode(tlb)) {
-                free_page_and_swap_cache(page);
-                return 1; /* avoid calling tlb_flush_mmu() */
-        }
 
 	VM_BUG_ON(!tlb->need_flush);
 
