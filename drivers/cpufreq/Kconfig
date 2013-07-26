@@ -118,12 +118,6 @@ config CPU_FREQ_DEFAULT_GOV_DYNAMIC_INTERACTIVE
           loading your cpufreq low-level hardware driver, using the
           'interactive' governor for latency-sensitive workloads. This governor
           changes its tunables by itself depending on the load of the system.
-
-config CPU_FREQ_DEFAULT_GOV_SMARTASSH3
-	bool "smartassH3"
-	select CPU_FREQ_GOV_SMARTASSH3
-	help
-	Use the CPUFreq governor 'SmartassH3' as default.
 	  
 endchoice
 
@@ -148,14 +142,6 @@ config CPU_FREQ_GOV_POWERSAVE
 	  module will be called cpufreq_powersave.
 
 	  If in doubt, say Y.
-
-config CPU_FREQ_GOV_SMARTASSH3
-	tristate "'SmartassH3' cpufreq governor"
-	depends on CPU_FREQ
-	help
-	  SmartassH3 - a "smartassV2 with tweaks by H3ROS" governor!
-
-	  If in doubt, say N.
 
 config CPU_FREQ_GOV_INTERACTIVE
         tristate "'interactive' cpufreq policy governor"

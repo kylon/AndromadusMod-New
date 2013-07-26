@@ -496,10 +496,14 @@ int kgsl_pwrctrl_init(struct kgsl_device *device)
 		pwr->pwrlevels[i].io_fraction =
 			pdata->pwrlevel[i].io_fraction;
 	}
+#ifdef CONFIG_GPU_OC
+	/*Removed AXI Sync code (Shaky156)*/
+#else
 	/* Do not set_rate for targets in sync with AXI */
 	if (pwr->pwrlevels[0].gpu_freq > 0)
 		clk_set_rate(pwr->grp_clks[0], pwr->
 				pwrlevels[pwr->num_pwrlevels - 1].gpu_freq);
+#endif
 
 	pwr->gpu_reg = regulator_get(NULL, pwr->regulator_name);
 	if (IS_ERR(pwr->gpu_reg))

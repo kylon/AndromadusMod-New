@@ -202,7 +202,7 @@ config SAGA_OTG
           You have to enable this to fix the otg mode
 
 config DYNAMIC_FSYNC
-  bool "dynamic file sync control"
+  bool "dynamic file sync control 1.2"
   default y
   help 
     An experimental file sync control using Android's early suspend / late resume drivers
@@ -214,11 +214,11 @@ config CRAZY_OC
          This will add 1.9Ghz and 2.0Ghz !!
 
 config GPU_OC
-       bool "Full Overclock Adreno 205+"
+       bool "Overclock Adreno 205+"
        default n
        help
          Enable 350Mhz for Adreno 205 plus
-         Enable 2d overclock
+         Enable 2d overclock @266Mhz - thanks to Shaky156
          
          A good performance boost.
          At own risk!

@@ -1373,27 +1373,15 @@ struct resource kgsl_3d0_resources[] = {
 static struct kgsl_device_platform_data kgsl_3d0_pdata = {
 	.pwrlevel = {
 		{
-#ifdef CONFIG_GPU_OC
-			.gpu_freq = 353280000,
-#else
-                        .gpu_freq = 245760000,
-#endif
+            .gpu_freq = 266667000, /*Restore correct GPU frequency and bus frequency (Shaky156)*/
 			.bus_freq = 192000000,
 		},
 		{
-#ifdef CONFIG_GPU_OC
-			.gpu_freq = 299520000, 
-#else
-                       	.gpu_freq = 192000000,
-#endif
+            .gpu_freq = 192000000,
 			.bus_freq = 152000000,
 		},
 		{
-#ifdef CONFIG_GPU_OC
-			.gpu_freq = 245760000,
-#else
-                        .gpu_freq = 192000000,
-#endif
+            .gpu_freq = 192000000,
 			.bus_freq = 0,
 		},
 	},
@@ -1435,14 +1423,26 @@ static struct resource kgsl_2d0_resources[] = {
 static struct kgsl_device_platform_data kgsl_2d0_pdata = {
 	.pwrlevel = {
 		{
+#ifdef CONFIG_GPU_OC
+   /* Set 2D-core GPU Frequency @266mhz (Shaky156) */
+			.gpu_freq = 266667000,
+#else
 			.gpu_freq = 0,
+#endif
 			.bus_freq = 192000000,
 		},
 	},
 	.init_level = 0,
 	.num_levels = 1,
+#ifdef CONFIG_GPU_OC
+   /* Set the 2D-core Graphics Clock Asynchronous 
+      to the AXI clock (Shaky156)
+    */
+	.set_grp_async = set_grp2d_async,
+#else
 	/* HW workaround, run Z180 SYNC @ 192 MHZ */
 	.set_grp_async = NULL,
+#endif
 	.idle_timeout = HZ/10,
 	.nap_allowed = true,
 	.idle_needed = true,
