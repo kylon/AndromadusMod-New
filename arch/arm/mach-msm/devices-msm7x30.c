@@ -1373,7 +1373,7 @@ struct resource kgsl_3d0_resources[] = {
 static struct kgsl_device_platform_data kgsl_3d0_pdata = {
 	.pwrlevel = {
 		{
-			.gpu_freq = 245760000,
+			.gpu_freq = 245760000, /*Restore correct GPU frequency and bus frequency (Shaky156)*/
 			.bus_freq = 192000000,
 		},
 		{
@@ -1423,14 +1423,13 @@ static struct resource kgsl_2d0_resources[] = {
 static struct kgsl_device_platform_data kgsl_2d0_pdata = {
 	.pwrlevel = {
 		{
-			.gpu_freq = 0,
+			.gpu_freq = 245760000, //Set 2D-core GPU Frequency @245mhz (Shaky156)
 			.bus_freq = 192000000,
 		},
 	},
 	.init_level = 0,
 	.num_levels = 1,
-	/* HW workaround, run Z180 SYNC @ 192 MHZ */
-	.set_grp_async = NULL,
+	.set_grp_async = set_grp2d_async, //Set the 2D-core Graphics Clock Asynchronous to the AXI clock (Shaky156)
 	.idle_timeout = HZ/10,
 	.nap_allowed = true,
 	.idle_needed = true,

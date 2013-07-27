@@ -2992,8 +2992,8 @@ static void __init msm7x30_clock_init(void)
 	clk_set_rate(&mdc_clk.c, 1);
 	/* Sync the LPA_CODEC clock to MI2S_CODEC_RX */
 	clk_set_rate(&lpa_codec_clk.c, 1);
-	/* Sync the GRP2D clock to AXI */
-	clk_set_rate(&grp_2d_clk.c, 1);
+	/* Set rate of 2D-core GPU Clock @245Mhz (OC of 53Mhz 25% perf boost by Shaky156) */
+        clk_set_rate(&grp_2d_clk.c, 245760000);
 }
 
 struct clock_init_data msm7x30_clock_init_data __initdata = {
