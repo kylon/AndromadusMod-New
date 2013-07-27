@@ -1277,7 +1277,7 @@ static struct rcg_clk grp_2d_clk = {
 	.c = {
 		.dbg_name = "grp_2d_clk",
 		.ops = &clk_ops_rcg_7x30,
-        VDD_DIG_FMAX_MAP2(NOMINAL, 192000000, HIGH, 266667000),
+		VDD_DIG_FMAX_MAP2(NOMINAL, 192000000, HIGH, 245760000),
 		CLK_INIT(grp_2d_clk.c),
 		.depends = &axi_grp_2d_clk.c,
 	},
@@ -1297,7 +1297,7 @@ static struct rcg_clk grp_3d_src_clk = {
 	.c = {
 		.dbg_name = "grp_3d_src_clk",
 		.ops = &clk_ops_rcg_7x30,
-        VDD_DIG_FMAX_MAP2(NOMINAL, 192000000, HIGH, 266667000),
+		VDD_DIG_FMAX_MAP2(NOMINAL, 192000000, HIGH, 245760000),
 		CLK_INIT(grp_3d_src_clk.c),
 		.depends = &axi_li_grp_clk.c,
 	},
@@ -2992,13 +2992,8 @@ static void __init msm7x30_clock_init(void)
 	clk_set_rate(&mdc_clk.c, 1);
 	/* Sync the LPA_CODEC clock to MI2S_CODEC_RX */
 	clk_set_rate(&lpa_codec_clk.c, 1);
-#ifdef CONFIG_GPU_OC
-    /* Set rate of 2D-core GPU Clock @266Mhz (Shaky156) */
-	clk_set_rate(&grp_2d_clk.c, 266667000);
-#else
 	/* Sync the GRP2D clock to AXI */
 	clk_set_rate(&grp_2d_clk.c, 1);
-#endif
 }
 
 struct clock_init_data msm7x30_clock_init_data __initdata = {
