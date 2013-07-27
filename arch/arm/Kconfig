@@ -217,8 +217,8 @@ config GPU_OC
        bool "Overclock Adreno 205+"
        default n
        help
-         Enable 350Mhz for Adreno 205 plus
-         Enable 2d overclock @266Mhz - thanks to Shaky156
+         Enable 2d-core overclock @245Mhz - thanks to Shaky156
+         You have to uncheck Disable hw overlay!
          
          A good performance boost.
          At own risk!
