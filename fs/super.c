@@ -506,9 +506,10 @@ restart:
 	list_for_each_entry(sb, &super_blocks, s_list) {
 		if (list_empty(&sb->s_instances))
 			continue;
-		if (!grab_super(sb))
+                if (sb->s_bdev == bdev) {
+		        if (!grab_super(sb))
 				goto restart;
-                up_write(&sb->s_umount);
+                        up_write(&sb->s_umount);
 			return sb;
 		}
 	}
