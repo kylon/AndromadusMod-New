@@ -1071,16 +1071,16 @@ local_flush_and_out:
 }
 
 struct tlb_pending_info {
-       unsigned long ctx;
-       unsigned long nr;
-       unsigned long *vaddrs;
+	unsigned long ctx;
+	unsigned long nr;
+	unsigned long *vaddrs;
 };
- 
+
 static void tlb_pending_func(void *info)
 {
-       struct tlb_pending_info *t = info;
- 
-       __flush_tlb_pending(t->ctx, t->nr, t->vaddrs);
+	struct tlb_pending_info *t = info;
+
+	__flush_tlb_pending(t->ctx, t->nr, t->vaddrs);
 }
 
 void smp_flush_tlb_pending(struct mm_struct *mm, unsigned long nr, unsigned long *vaddrs)
@@ -1088,16 +1088,16 @@ void smp_flush_tlb_pending(struct mm_struct *mm, unsigned long nr, unsigned long
 	u32 ctx = CTX_HWBITS(mm->context);
 	struct tlb_pending_info info;
 	int cpu = get_cpu();
-        
-        info.ctx = ctx;
-        info.nr = nr;
-        info.vaddrs = vaddrs;
+
+	info.ctx = ctx;
+	info.nr = nr;
+	info.vaddrs = vaddrs;
 
 	if (mm == current->mm && atomic_read(&mm->mm_users) == 1)
 		cpumask_copy(mm_cpumask(mm), cpumask_of(cpu));
 	else
 		smp_call_function_many(mm_cpumask(mm), tlb_pending_func,
-                                       &info, 1);
+				       &info, 1);
 
 	__flush_tlb_pending(ctx, nr, vaddrs);
 
@@ -1106,18 +1106,18 @@ void smp_flush_tlb_pending(struct mm_struct *mm, unsigned long nr, unsigned long
 
 void smp_flush_tlb_page(struct mm_struct *mm, unsigned long vaddr)
 {
-       unsigned long context = CTX_HWBITS(mm->context);
-       int cpu = get_cpu();
- 
-       if (mm == current->mm && atomic_read(&mm->mm_users) == 1)
-               cpumask_copy(mm_cpumask(mm), cpumask_of(cpu));
-       else
-               smp_cross_call_masked(&xcall_flush_tlb_page,
-                                     context, vaddr, 0,
-                                     mm_cpumask(mm));
-               __flush_tlb_page(context, vaddr);
- 
-               put_cpu();
+	unsigned long context = CTX_HWBITS(mm->context);
+	int cpu = get_cpu();
+
+	if (mm == current->mm && atomic_read(&mm->mm_users) == 1)
+		cpumask_copy(mm_cpumask(mm), cpumask_of(cpu));
+	else
+		smp_cross_call_masked(&xcall_flush_tlb_page,
+				      context, vaddr, 0,
+				      mm_cpumask(mm));
+	__flush_tlb_page(context, vaddr);
+
+	put_cpu();
 }
 
 void smp_flush_tlb_kernel_range(unsigned long start, unsigned long end)

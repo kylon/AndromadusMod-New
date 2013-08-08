@@ -47,26 +47,26 @@ void flush_tsb_kernel_range(unsigned long start, unsigned long end)
 }
 
 static void __flush_tsb_one_entry(unsigned long tsb, unsigned long v,
-                                 unsigned long hash_shift,
-                                 unsigned long nentries)
+				  unsigned long hash_shift,
+				  unsigned long nentries)
 {
 	unsigned long tag, ent, hash;
 
 	v &= ~0x1UL;
-        hash = tsb_hash(v, hash_shift, nentries);
-        ent = tsb + (hash * sizeof(struct tsb));
-        tag = (v >> 22UL);
+	hash = tsb_hash(v, hash_shift, nentries);
+	ent = tsb + (hash * sizeof(struct tsb));
+	tag = (v >> 22UL);
 
-        tsb_flush(ent, tag);
+	tsb_flush(ent, tag);
 }
 
 static void __flush_tsb_one(struct tlb_batch *tb, unsigned long hash_shift,
-                                           unsigned long tsb, unsigned long nentries)
+			    unsigned long tsb, unsigned long nentries)
 {
-       unsigned long i;
+	unsigned long i;
 
-       for (i = 0; i < tb->tlb_nr; i++)
-              __flush_tsb_one_entry(tsb, tb->vaddrs[i], hash_shift, nentries);
+	for (i = 0; i < tb->tlb_nr; i++)
+		__flush_tsb_one_entry(tsb, tb->vaddrs[i], hash_shift, nentries);
 }
 
 void flush_tsb_user(struct tlb_batch *tb)
@@ -96,26 +96,26 @@ void flush_tsb_user(struct tlb_batch *tb)
 
 void flush_tsb_user_page(struct mm_struct *mm, unsigned long vaddr)
 {
-      unsigned long nentries, base, flags;
- 
-      spin_lock_irqsave(&mm->context.lock, flags);
- 
-      base = (unsigned long) mm->context.tsb_block[MM_TSB_BASE].tsb;
-      nentries = mm->context.tsb_block[MM_TSB_BASE].tsb_nentries;
-      if (tlb_type == cheetah_plus || tlb_type == hypervisor)
-              base = __pa(base);
-       __flush_tsb_one_entry(base, vaddr, PAGE_SHIFT, nentries);
- 
+	unsigned long nentries, base, flags;
+
+	spin_lock_irqsave(&mm->context.lock, flags);
+
+	base = (unsigned long) mm->context.tsb_block[MM_TSB_BASE].tsb;
+	nentries = mm->context.tsb_block[MM_TSB_BASE].tsb_nentries;
+	if (tlb_type == cheetah_plus || tlb_type == hypervisor)
+		base = __pa(base);
+	__flush_tsb_one_entry(base, vaddr, PAGE_SHIFT, nentries);
+
 #if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
-       if (mm->context.tsb_block[MM_TSB_HUGE].tsb) {
-               base = (unsigned long) mm->context.tsb_block[MM_TSB_HUGE].tsb;
-               nentries = mm->context.tsb_block[MM_TSB_HUGE].tsb_nentries;
-               if (tlb_type == cheetah_plus || tlb_type == hypervisor)
-                       base = __pa(base);
-               __flush_tsb_one_entry(base, vaddr, HPAGE_SHIFT, nentries);
-      }
+	if (mm->context.tsb_block[MM_TSB_HUGE].tsb) {
+		base = (unsigned long) mm->context.tsb_block[MM_TSB_HUGE].tsb;
+		nentries = mm->context.tsb_block[MM_TSB_HUGE].tsb_nentries;
+		if (tlb_type == cheetah_plus || tlb_type == hypervisor)
+			base = __pa(base);
+		__flush_tsb_one_entry(base, vaddr, HPAGE_SHIFT, nentries);
+	}
 #endif
-      spin_unlock_irqrestore(&mm->context.lock, flags);
+	spin_unlock_irqrestore(&mm->context.lock, flags);
 }
 
 #if defined(CONFIG_SPARC64_PAGE_SIZE_8KB)

@@ -27,14 +27,14 @@ void flush_tlb_pending(void)
 	struct mm_struct *mm = tb->mm;
 
 	if (!tb->tlb_nr)
-                goto out;
+		goto out;
 
-        flush_tsb_user(tb);
- 
-        if (CTX_VALID(mm->context)) {
-                if (tb->tlb_nr == 1) {
-                        global_flush_tlb_page(mm, tb->vaddrs[0]);
-        } else {
+	flush_tsb_user(tb);
+
+	if (CTX_VALID(mm->context)) {
+		if (tb->tlb_nr == 1) {
+			global_flush_tlb_page(mm, tb->vaddrs[0]);
+		} else {
 #ifdef CONFIG_SMP
 			smp_flush_tlb_pending(tb->mm, tb->tlb_nr,
 					      &tb->vaddrs[0]);
@@ -45,26 +45,26 @@ void flush_tlb_pending(void)
 		}
 	}
 
-        tb->tlb_nr = 0;
- 
+	tb->tlb_nr = 0;
+
 out:
 	put_cpu_var(tlb_batch);
 }
 
 void arch_enter_lazy_mmu_mode(void)
 {
-       struct tlb_batch *tb = &__get_cpu_var(tlb_batch);
- 
-       tb->active = 1;
+	struct tlb_batch *tb = &__get_cpu_var(tlb_batch);
+
+	tb->active = 1;
 }
- 
+
 void arch_leave_lazy_mmu_mode(void)
 {
-       struct tlb_batch *tb = &__get_cpu_var(tlb_batch);
- 
-       if (tb->tlb_nr)
-               flush_tlb_pending();
-       tb->active = 0;
+	struct tlb_batch *tb = &__get_cpu_var(tlb_batch);
+
+	if (tb->tlb_nr)
+		flush_tlb_pending();
+	tb->active = 0;
 }
 
 void tlb_batch_add(struct mm_struct *mm, unsigned long vaddr,
@@ -113,12 +113,12 @@ no_cache_flush:
 		flush_tlb_pending();
 		nr = 0;
 	}
-        
-        if (!tb->active) {
-                global_flush_tlb_page(mm, vaddr);
-                flush_tsb_user_page(mm, vaddr);
-                goto out;
-        }
+
+	if (!tb->active) {
+		flush_tsb_user_page(mm, vaddr);
+		global_flush_tlb_page(mm, vaddr);
+		goto out;
+	}
 
 	if (nr == 0)
 		tb->mm = mm;

@@ -164,7 +164,7 @@ static void kexec_smp_down(void *arg)
 {
 	local_irq_disable();
 	hard_irq_disable();
-	
+
 	mb(); /* make sure our irqs are disabled before we say they are */
 	get_paca()->kexec_state = KEXEC_STATE_IRQS_OFF;
 	while(kexec_all_irq_disabled == 0)
@@ -248,7 +248,7 @@ static void kexec_prepare_cpus(void)
 	smp_call_function(kexec_smp_down, NULL, /* wait */0);
 	local_irq_disable();
 	hard_irq_disable();
-	
+
 	mb(); /* make sure IRQs are disabled before we say they are */
 	get_paca()->kexec_state = KEXEC_STATE_IRQS_OFF;
 

@@ -956,8 +956,6 @@ static int xhci_check_args(struct usb_hcd *hcd, struct usb_device *udev,
 	}
 
 	xhci = hcd_to_xhci(hcd);
-	if (xhci->xhc_state & XHCI_STATE_HALTED)
-		return -ENODEV;
 
 	if (check_virt_dev) {
 		if (!udev->slot_id || !xhci->devs
@@ -974,6 +972,9 @@ static int xhci_check_args(struct usb_hcd *hcd, struct usb_device *udev,
 			return -EINVAL;
 		}
 	}
+      
+        if (xhci->xhc_state & XHCI_STATE_HALTED)
+		return -ENODEV;
 
 	return 1;
 }
