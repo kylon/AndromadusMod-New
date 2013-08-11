@@ -197,6 +197,8 @@ menu "AndromadusMod exp"
 
 config SAGA_OTG
         bool "OTG fix for HTC Saga"
+        select USB_OTG_HOST
+        select USB_OTG
         default n
         help
           You have to enable this to fix the otg mode

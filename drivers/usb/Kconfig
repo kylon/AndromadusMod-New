@@ -110,7 +110,7 @@ config USB
 
 config USB_OTG_HOST
 	boolean "USB OTG Host function"
-	depends on USB_OTG
+	depends on SAGA_OTG
 	default n
 
 source "drivers/usb/core/Kconfig"
