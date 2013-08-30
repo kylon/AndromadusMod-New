@@ -19,13 +19,13 @@
 #include <linux/kref.h>
 #include <linux/ktime.h>
 #include <linux/list.h>
+#include <linux/seq_file.h>
 #include <linux/spinlock.h>
 #include <linux/wait.h>
 
 struct sync_timeline;
 struct sync_pt;
 struct sync_fence;
-struct seq_file;
 
 /**
  * struct sync_timeline_ops - sync object implementation ops
@@ -425,3 +425,4 @@ struct sync_fence_info_data {
 	struct sync_fence_info_data)
 
 #endif /* _LINUX_SYNC_H */
+
