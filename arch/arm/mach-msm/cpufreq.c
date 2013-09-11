@@ -350,9 +350,13 @@ static int msm_cpufreq_suspend(struct cpufreq_policy *policy)
 static int msm_cpufreq_resume(struct cpufreq_policy *policy)
 {
 	int cpu;
+	struct cpufreq_policy policy; 
 
 	for_each_possible_cpu(cpu) {
 		per_cpu(cpufreq_suspend, cpu).device_suspended = 0;
+		cpufreq_get_policy(&policy, cpu);
+                if (cpu_online(cpu))
+                  acpuclk_set_rate(cpu, policy.max, SETRATE_CPUFREQ); 
 	}
 
 	return 0;
