@@ -1,6 +1,6 @@
 #
 # Automatically generated make config: don't edit
-# Linux/arm 3.0.89 Kernel Configuration
+# Linux/arm 3.0.95 Kernel Configuration
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -1078,6 +1078,7 @@ CONFIG_EXTRA_FIRMWARE=""
 CONFIG_GENLOCK=y
 CONFIG_GENLOCK_MISCDEVICE=y
 CONFIG_SYNC=y
+# CONFIG_DMA_SHARED_BUFFER is not set
 CONFIG_SW_SYNC=y
 CONFIG_SW_SYNC_USER=y
 # CONFIG_CONNECTOR is not set
