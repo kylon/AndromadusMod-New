@@ -2136,7 +2136,7 @@ sd_read_cache_type(struct scsi_disk *sdkp, unsigned char *buffer)
 		}
 
 		sd_printk(KERN_ERR, sdkp, "No Caching mode page found\n");
-                goto defaults;
+		goto defaults;
 
 	Page_found:
 		if (modepage == 8) {

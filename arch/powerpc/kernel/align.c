@@ -763,7 +763,7 @@ int fix_alignment(struct pt_regs *regs)
 	/* Lookup the operation in our table */
 	nb = aligninfo[instr].len;
 	flags = aligninfo[instr].flags;
-	
+
 	/* ldbrx/stdbrx overlap lfs/stfs in the DSISR unfortunately */
 	if (IS_XFORM(instruction) && ((instruction >> 1) & 0x3ff) == 532) {
 		nb = 8;

@@ -1304,9 +1304,9 @@ static int fuse_writepage_locked(struct page *page)
 	list_add_tail(&req->list, &fi->queued_writes);
 	fuse_flush_writepages(inode);
 	spin_unlock(&fc->lock);
-
-	end_page_writeback(page);
 	
+	end_page_writeback(page);
+
 	return 0;
 
 err_free:

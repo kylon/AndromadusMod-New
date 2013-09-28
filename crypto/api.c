@@ -154,10 +154,9 @@ static struct crypto_alg *crypto_larval_add(const char *name, u32 type,
 
 	if (alg != &larval->alg) {
  		kfree(larval);
- 		if (crypto_is_larval(alg))
- 			alg = crypto_larval_wait(alg);
- 	}
-		kfree(larval);
+		if (crypto_is_larval(alg))
+			alg = crypto_larval_wait(alg);
+	}
 
 	return alg;
 }

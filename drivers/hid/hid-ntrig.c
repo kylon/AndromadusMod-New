@@ -116,7 +116,7 @@ static inline int ntrig_get_mode(struct hid_device *hdev)
 				    report_id_hash[0x0d];
 
 	if (!report || report->maxfield < 1 ||
- 	    report->field[0]->report_count < 1)
+	    report->field[0]->report_count < 1)
 		return -EINVAL;
 
 	usbhid_submit_report(hdev, report, USB_DIR_IN);
