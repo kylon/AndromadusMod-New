@@ -99,8 +99,8 @@ spufs_new_inode(struct super_block *sb, int mode)
 	inode = new_inode(sb);
 	if (!inode)
 		goto out;
-        
-        inode->i_ino = get_next_ino();
+
+	inode->i_ino = get_next_ino();
 	inode->i_mode = mode;
 	inode->i_uid = current_fsuid();
 	inode->i_gid = current_fsgid();

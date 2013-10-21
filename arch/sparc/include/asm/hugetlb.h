@@ -68,8 +68,8 @@ static inline int huge_ptep_set_access_flags(struct vm_area_struct *vma,
 {
 	int changed = !pte_same(*ptep, pte);
 	if (changed) {
-	        set_huge_pte_at(vma->vm_mm, addr, ptep, pte);
-	        flush_tlb_page(vma, addr);
+		set_huge_pte_at(vma->vm_mm, addr, ptep, pte);
+		flush_tlb_page(vma, addr);
 	}
 	return changed;
 }
