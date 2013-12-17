@@ -5445,33 +5445,19 @@ static struct memtype_reserve msm7x30_reserve_table[] __initdata = {
 	},
 };
 
-static void __init size_pmem_device(struct android_pmem_platform_data *pdata, unsigned long start, unsigned long size)
-{
-	pdata->start = start;
-	pdata->size = size;
-	if (pdata->start)
-		pr_info("%s: pmem %s requests %lu bytes at 0x%p (0x%lx physical).\r\n",
-			__func__, pdata->name, size, __va(start), start);
-	else
-		pr_info("%s: pmem %s requests %lu bytes dynamically.\r\n",
-			__func__, pdata->name, size);
-}
 static void __init size_pmem_devices(void)
 {
 #ifdef CONFIG_ANDROID_PMEM
-  size_pmem_device(&android_pmem_adsp_pdata, 0, pmem_adsp_size);
-//  size_pmem_device(&android_pmem_audio_pdata, 0, pmem_audio_size);
-  size_pmem_device(&android_pmem_pdata, 0, pmem_sf_size);
-  msm7x30_reserve_table[MEMTYPE_EBI0].size += PMEM_KERNEL_EBI0_SIZE;
+  android_pmem_adsp_pdata.size = pmem_adsp_size;
+//  android_pmem_audio_pdata.size = pmem_audio_size;
+  android_pmem_pdata.size = pmem_sf_size;
 #endif
 }
 
 static void __init reserve_memory_for(struct android_pmem_platform_data *p)
 {
-	if (p->start == 0) {
-		pr_info("%s: reserve %lu bytes from memory %d for %s.\r\n", __func__, p->size, p->memory_type, p->name);
-		msm7x30_reserve_table[p->memory_type].size += p->size;
-	}
+	pr_info("%s: reserve %lu bytes from memory %d for %s.\n", __func__, p->size, p->memory_type, p->name);
+        msm7x30_reserve_table[p->memory_type].size += p->size;
 }
 
 static void __init reserve_pmem_memory(void)
@@ -5480,6 +5466,7 @@ static void __init reserve_pmem_memory(void)
 	reserve_memory_for(&android_pmem_adsp_pdata);
 //	reserve_memory_for(&android_pmem_audio_pdata);
 	reserve_memory_for(&android_pmem_pdata);
+	msm7x30_reserve_table[MEMTYPE_EBI0].size += PMEM_KERNEL_EBI0_SIZE;
 #endif
 }
 
